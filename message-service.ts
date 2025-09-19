@@ -1,3 +1,6 @@
+import { AuthService } from "./auth-service";
+import { Discussion, DiscussionService } from "./discussion-service";
+
 export enum Action {
   SIGN_IN = "SIGN_IN",
   WHOAMI = "WHOAMI",
@@ -58,112 +61,140 @@ export type Message =
   | GetDiscussionMessage
   | ListDiscussionsMessage;
 
-let clientNames: { [clientId: string]: string | null } = {};
+export class MessageService {
+  private authService = new AuthService();
+  private discussionService = new DiscussionService();
 
-export const processData = (data: Buffer, clientId: string): Message => {
-  const message = data.toString().trimEnd();
-  const parts = message.split("|");
-  const requestId = parts[0];
-  const action = parts[1] as Action;
+  private parseMessage(data: Buffer, clientId: string): Message {
+    const message = data.toString().trimEnd();
+    const parts = message.split("|");
+    const requestId = parts[0];
+    const action = parts[1] as Action;
 
-  switch (action) {
-    case Action.SIGN_IN:
-      return {
-        requestId,
-        action,
-        clientId,
-        clientName: parts[2] || "",
-      };
+    switch (action) {
+      case Action.SIGN_IN:
+        return {
+          requestId,
+          action,
+          clientId,
+          clientName: parts[2] || "",
+        };
 
-    case Action.WHOAMI:
-    case Action.SIGN_OUT:
-      return { requestId, action, clientId };
+      case Action.WHOAMI:
+      case Action.SIGN_OUT:
+        return { requestId, action, clientId };
 
-    case Action.CREATE_DISCUSSION:
-      return {
-        requestId,
-        action,
-        clientId,
-        reference: parts[2] || "",
-        comment: parts[3] || "",
-      };
+      case Action.CREATE_DISCUSSION:
+        return {
+          requestId,
+          action,
+          clientId,
+          reference: parts[2] || "",
+          comment: parts[3] || "",
+        };
 
-    case Action.CREATE_REPLY:
-      return {
-        requestId,
-        action,
-        clientId,
-        discussionId: parts[2] || "",
-        comment: parts[3] || "",
-      };
+      case Action.CREATE_REPLY:
+        return {
+          requestId,
+          action,
+          clientId,
+          discussionId: parts[2] || "",
+          comment: parts[3] || "",
+        };
 
-    case Action.GET_DISCUSSION:
-      return {
-        requestId,
-        action,
-        clientId,
-        discussionId: parts[2] || "",
-      };
+      case Action.GET_DISCUSSION:
+        return {
+          requestId,
+          action,
+          clientId,
+          discussionId: parts[2] || "",
+        };
 
-    case Action.LIST_DISCUSSIONS:
-      return {
-        requestId,
-        action,
-        clientId,
-        referencePrefix: parts[2] || "",
-      };
+      case Action.LIST_DISCUSSIONS:
+        return {
+          requestId,
+          action,
+          clientId,
+          referencePrefix: parts[2] || "",
+        };
+    }
   }
-};
 
-export const processMessage = (msg: Message) => {
-  switch (msg.action) {
-    case Action.SIGN_IN:
-      const signInMsg = msg as SignInMessage;
-      clientNames[signInMsg.clientId] = signInMsg.clientName;
-      console.log(
-        `Client signed in with ID: ${clientNames[signInMsg.clientId]}`
-      );
-      return msg.requestId + "\n";
+  processMessage(data: Buffer, clientId: string): string {
+    const msg = this.parseMessage(data, clientId);
 
-    case Action.WHOAMI:
-      console.log(`Current client name: ${clientNames[msg.clientId]}`);
-      return [msg.requestId, clientNames[msg.clientId]].join("|") + "\n";
+    switch (msg.action) {
+      case Action.SIGN_IN:
+        this.authService.signIn(msg.clientId, msg.clientName);
 
-    case Action.SIGN_OUT:
-      console.log(`Client signed out: ${clientNames[msg.clientId]}`);
-      clientNames[msg.clientId] = null;
-      return msg.requestId + "\n";
+        return msg.requestId + "\n";
 
-    case Action.CREATE_DISCUSSION:
-      const createDiscussionMsg = msg as CreateDiscussionMessage;
-      console.log(
-        `Creating discussion for reference: ${createDiscussionMsg.reference} with comment: ${createDiscussionMsg.comment}`
-      );
-      // Here you would normally create the discussion in your system
-      return msg.requestId + "|DISCUSSION_CREATED\n";
+      case Action.WHOAMI:
+        const name = this.authService.whoAmI(msg.clientId);
 
-    case Action.CREATE_REPLY:
-      const createReplyMsg = msg as CreateReplyMessage;
-      console.log(
-        `Creating reply for discussion ID: ${createReplyMsg.discussionId} with comment: ${createReplyMsg.comment}`
-      );
-      // Here you would normally create the reply in your system
-      return msg.requestId + "|REPLY_CREATED\n";
+        return [msg.requestId, name].join("|") + "\n";
 
-    case Action.GET_DISCUSSION:
-      const getDiscussionMsg = msg as GetDiscussionMessage;
-      console.log(
-        `Fetching discussion with ID: ${getDiscussionMsg.discussionId}`
-      );
-      // Here you would normally fetch the discussion from your system
-      return msg.requestId + "|DISCUSSION_FETCHED\n";
+      case Action.SIGN_OUT:
+        this.authService.signOut(msg.clientId);
 
-    case Action.LIST_DISCUSSIONS:
-      const listDiscussionsMsg = msg as ListDiscussionsMessage;
-      console.log(
-        `Listing discussions with reference prefix: ${listDiscussionsMsg.referencePrefix}`
-      );
-      // Here you would normally fetch the discussions from your system
-      return msg.requestId + "|DISCUSSIONS_LISTED\n";
+        return msg.requestId + "\n";
+
+      case Action.CREATE_DISCUSSION:
+        const id = this.discussionService.create(
+          this.authService.whoAmI(msg.clientId) || "",
+          msg.reference,
+          msg.comment
+        );
+
+        return msg.requestId + "|" + id + "\n";
+
+      case Action.CREATE_REPLY:
+        this.discussionService.replyTo(
+          msg.discussionId,
+          this.authService.whoAmI(msg.clientId) || "",
+          msg.comment
+        );
+
+        return msg.requestId + "\n";
+
+      case Action.GET_DISCUSSION:
+        const discussion = this.discussionService.get(msg.discussionId);
+        return (
+          [msg.requestId, this.createDiscussionResponse(discussion)].join("|") +
+          "\n"
+        );
+
+      case Action.LIST_DISCUSSIONS:
+        const discussions = this.discussionService.list(msg.referencePrefix);
+        const discussionsJoined = discussions
+          .map((d) => this.createDiscussionResponse(d))
+          .join(",");
+
+        return msg.requestId + "|" + `(${discussionsJoined})\n`;
+    }
   }
+
+  private createDiscussionResponse(discussion: Discussion | null): string {
+    if (!discussion) {
+      return "";
+    }
+
+    const commentsJoined = discussion.comments
+      .map((comment) => `${comment.clientName}|${escape(comment.content)}`)
+      .join(",");
+
+    return [discussion.id, discussion.reference, `(${commentsJoined})`].join(
+      "|"
+    );
+  }
+}
+
+const escape = (str: string): string => {
+  const escaped = str.replace('"', '""');
+
+  if (escaped.includes(",")) {
+    return `"${escaped}"`;
+  }
+
+  return escaped;
 };

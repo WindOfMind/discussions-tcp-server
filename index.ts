@@ -1,5 +1,7 @@
 import * as net from "net";
-import { processData, processMessage } from "./message-service";
+import { MessageService } from "./message-service";
+
+const messageService = new MessageService();
 
 // TCP Server
 const tcpServer = net.createServer((socket: net.Socket) => {
@@ -8,8 +10,7 @@ const tcpServer = net.createServer((socket: net.Socket) => {
 
   socket.on("data", (data: Buffer) => {
     console.log("Server received: " + data);
-    const message = processData(data, clientId);
-    const response = processMessage(message);
+    const response = messageService.processMessage(data, clientId);
     console.log("Server sending: " + response);
 
     socket.write(response);
