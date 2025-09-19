@@ -180,21 +180,21 @@ export class MessageService {
     }
 
     const commentsJoined = discussion.comments
-      .map((comment) => `${comment.clientName}|${escape(comment.content)}`)
+      .map((comment) => `${comment.clientName}|${this.escape(comment.content)}`)
       .join(",");
 
     return [discussion.id, discussion.reference, `(${commentsJoined})`].join(
       "|"
     );
   }
+
+  private escape = (str: string): string => {
+    const escaped = str.replaceAll('"', '""');
+
+    if (escaped.includes(",")) {
+      return `"${escaped}"`;
+    }
+
+    return escaped;
+  };
 }
-
-const escape = (str: string): string => {
-  const escaped = str.replace('"', '""');
-
-  if (escaped.includes(",")) {
-    return `"${escaped}"`;
-  }
-
-  return escaped;
-};

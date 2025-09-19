@@ -29,6 +29,10 @@ export class DiscussionService {
     reference: string,
     commentContent: string
   ): string {
+    console.log(
+      `Creating discussion for reference: ${reference} with content: ${commentContent}`
+    );
+
     const id = uuidv4();
 
     const comment = {
@@ -52,6 +56,10 @@ export class DiscussionService {
   }
 
   replyTo(discussionId: string, clientName: string, content: string): boolean {
+    console.log(
+      `Replying to discussion ID: ${discussionId} with content: ${content}`
+    );
+
     const discussion = this.discussions[discussionId];
 
     if (discussion) {
@@ -73,10 +81,14 @@ export class DiscussionService {
   }
 
   get(discussionId: string): Discussion | null {
+    console.log("Getting discussion with ID: " + discussionId);
+
     return this.discussions[discussionId] || null;
   }
 
   list(referencePrefix: string): Discussion[] {
+    console.log("Listing discussions for prefix: " + referencePrefix);
+
     return Object.values(this.discussions)
       .filter((d) => {
         const parts = d.reference.split(".");
