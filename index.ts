@@ -3,20 +3,20 @@ import { processData, processMessage } from "./message-service";
 
 // TCP Server
 const tcpServer = net.createServer((socket: net.Socket) => {
-  const clientKey = socket.remoteAddress + ":" + socket.remotePort;
-  console.log("Client connected: " + clientKey);
+  const clientId = socket.remoteAddress + ":" + socket.remotePort;
+  console.log("Client connected: " + clientId);
 
   socket.on("data", (data: Buffer) => {
     console.log("Server received: " + data);
-    const message = processData(data);
-    const response = processMessage(message, clientKey);
+    const message = processData(data, clientId);
+    const response = processMessage(message);
     console.log("Server sending: " + response);
 
     socket.write(response);
   });
 
   socket.on("end", () => {
-    console.log("Client disconnected: " + clientKey);
+    console.log("Client disconnected: " + clientId);
   });
 });
 

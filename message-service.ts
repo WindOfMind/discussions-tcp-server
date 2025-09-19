@@ -11,11 +11,12 @@ export enum Action {
 export interface MessageBase {
   requestId: string;
   action: Action;
+  clientId: string;
 }
 
 export interface SignInMessage extends MessageBase {
   action: Action.SIGN_IN;
-  clientId: string;
+  clientName: string;
 }
 
 export interface SignOutMessage extends MessageBase {
@@ -57,9 +58,9 @@ export type Message =
   | GetDiscussionMessage
   | ListDiscussionsMessage;
 
-let clients: { [key: string]: string | null } = {};
+let clientNames: { [clientId: string]: string | null } = {};
 
-export const processData = (data: Buffer): Message => {
+export const processData = (data: Buffer, clientId: string): Message => {
   const message = data.toString().trimEnd();
   const parts = message.split("|");
   const requestId = parts[0];
@@ -70,17 +71,19 @@ export const processData = (data: Buffer): Message => {
       return {
         requestId,
         action,
-        clientId: parts[2] || "",
+        clientId,
+        clientName: parts[2] || "",
       };
 
     case Action.WHOAMI:
     case Action.SIGN_OUT:
-      return { requestId, action };
+      return { requestId, action, clientId };
 
     case Action.CREATE_DISCUSSION:
       return {
         requestId,
         action,
+        clientId,
         reference: parts[2] || "",
         comment: parts[3] || "",
       };
@@ -89,6 +92,7 @@ export const processData = (data: Buffer): Message => {
       return {
         requestId,
         action,
+        clientId,
         discussionId: parts[2] || "",
         comment: parts[3] || "",
       };
@@ -97,6 +101,7 @@ export const processData = (data: Buffer): Message => {
       return {
         requestId,
         action,
+        clientId,
         discussionId: parts[2] || "",
       };
 
@@ -104,26 +109,29 @@ export const processData = (data: Buffer): Message => {
       return {
         requestId,
         action,
+        clientId,
         referencePrefix: parts[2] || "",
       };
   }
 };
 
-export const processMessage = (msg: Message, clientKey: string) => {
+export const processMessage = (msg: Message) => {
   switch (msg.action) {
     case Action.SIGN_IN:
       const signInMsg = msg as SignInMessage;
-      clients[clientKey] = signInMsg.clientId;
-      console.log(`Client signed in with ID: ${clients[clientKey]}`);
+      clientNames[signInMsg.clientId] = signInMsg.clientName;
+      console.log(
+        `Client signed in with ID: ${clientNames[signInMsg.clientId]}`
+      );
       return msg.requestId + "\n";
 
     case Action.WHOAMI:
-      console.log(`Current client ID: ${clients[clientKey]}`);
-      return [msg.requestId, clients[clientKey]].join("|") + "\n";
+      console.log(`Current client name: ${clientNames[msg.clientId]}`);
+      return [msg.requestId, clientNames[msg.clientId]].join("|") + "\n";
 
     case Action.SIGN_OUT:
-      console.log(`Client signed out: ${clients[clientKey]}`);
-      clients[clientKey] = null;
+      console.log(`Client signed out: ${clientNames[msg.clientId]}`);
+      clientNames[msg.clientId] = null;
       return msg.requestId + "\n";
 
     case Action.CREATE_DISCUSSION:
