@@ -1,9 +1,8 @@
 import * as net from "net";
-import { MessageService } from "./message-service";
+import { MessageService } from "./message/message-service";
 
 const messageService = new MessageService();
 
-// TCP Server
 const tcpServer = net.createServer((socket: net.Socket) => {
   const clientId = socket.remoteAddress + ":" + socket.remotePort;
   console.log("Client connected: " + clientId);
