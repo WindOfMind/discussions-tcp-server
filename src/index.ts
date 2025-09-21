@@ -1,25 +1,26 @@
 import * as net from "net";
 import { MessageService } from "./message/message-service";
+import logger from "./logger/logger";
 
 const messageService = new MessageService();
 
 const tcpServer = net.createServer((socket: net.Socket) => {
   const clientId = socket.remoteAddress + ":" + socket.remotePort;
-  console.log("Client connected: " + clientId);
+  logger.info("Client connected", { clientId });
 
   socket.on("data", (data: Buffer) => {
-    console.log("Server received: " + data);
+    logger.debug("Server received", { data: data.toString(), clientId });
     const response = messageService.processMessage(data, clientId);
-    console.log("Server sending: " + response);
+    logger.debug("Server sending", { response, clientId });
 
     socket.write(response);
   });
 
   socket.on("end", () => {
-    console.log("Client disconnected: " + clientId);
+    logger.info("Client disconnected", { clientId });
   });
 });
 
 tcpServer.listen(8083, "localhost", () => {
-  console.log("Server listening on port 8083");
+  logger.info("Server listening on port 8083");
 });

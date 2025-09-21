@@ -5,10 +5,76 @@ import {
 } from "../discussion/discussion-service";
 import { ResponseBuilder } from "./response-builder";
 import { Message, Action } from "./types";
+import logger from "../logger/logger";
 
 export class MessageService {
   private authService = new AuthService();
   private discussionService = new DiscussionService();
+
+  processMessage(data: Buffer, clientId: string): string {
+    const msg = this.parseMessage(data, clientId);
+
+    switch (msg.action) {
+      case Action.SIGN_IN:
+        this.authService.signIn(msg.clientId, msg.clientName);
+
+        return new ResponseBuilder().with(msg.requestId).build();
+
+      case Action.WHOAMI:
+        const name = this.authService.whoAmI(msg.clientId);
+
+        if (!name) {
+          logger.warn("No name found for client ID", {
+            clientId: msg.clientId,
+          });
+
+          return new ResponseBuilder().with(msg.requestId).build();
+        }
+
+        return new ResponseBuilder().with(msg.requestId).with(name).build();
+
+      case Action.SIGN_OUT:
+        this.authService.signOut(msg.clientId);
+
+        return new ResponseBuilder().with(msg.requestId).build();
+
+      case Action.CREATE_DISCUSSION:
+        const id = this.discussionService.create(
+          this.authService.whoAmI(msg.clientId) || "",
+          msg.reference,
+          msg.comment
+        );
+
+        return new ResponseBuilder().with(msg.requestId).with(id).build();
+
+      case Action.CREATE_REPLY:
+        this.discussionService.replyTo(
+          msg.discussionId,
+          this.authService.whoAmI(msg.clientId) || "",
+          msg.comment
+        );
+
+        return new ResponseBuilder().with(msg.requestId).build();
+
+      case Action.GET_DISCUSSION:
+        const discussion = this.discussionService.get(msg.discussionId);
+        const disscussionResponse = this.toDiscussionResponse(discussion);
+
+        return new ResponseBuilder()
+          .with(msg.requestId)
+          .with(disscussionResponse)
+          .build();
+
+      case Action.LIST_DISCUSSIONS:
+        const discussions = this.discussionService.list(msg.referencePrefix);
+        const discussionsJoined = discussions.map(this.toDiscussionResponse);
+
+        return new ResponseBuilder()
+          .with(msg.requestId)
+          .withList(discussionsJoined)
+          .build();
+    }
+  }
 
   private parseMessage(data: Buffer, clientId: string): Message {
     const message = data.toString().trimEnd();
@@ -62,69 +128,6 @@ export class MessageService {
           clientId,
           referencePrefix: parts[2] || "",
         };
-    }
-  }
-
-  processMessage(data: Buffer, clientId: string): string {
-    const msg = this.parseMessage(data, clientId);
-
-    switch (msg.action) {
-      case Action.SIGN_IN:
-        this.authService.signIn(msg.clientId, msg.clientName);
-
-        return new ResponseBuilder().with(msg.requestId).build();
-
-      case Action.WHOAMI:
-        const name = this.authService.whoAmI(msg.clientId);
-
-        if (!name) {
-          console.log("No name found for client ID: " + msg.clientId);
-
-          return new ResponseBuilder().with(msg.requestId).build();
-        }
-
-        return new ResponseBuilder().with(msg.requestId).with(name).build();
-
-      case Action.SIGN_OUT:
-        this.authService.signOut(msg.clientId);
-
-        return new ResponseBuilder().with(msg.requestId).build();
-
-      case Action.CREATE_DISCUSSION:
-        const id = this.discussionService.create(
-          this.authService.whoAmI(msg.clientId) || "",
-          msg.reference,
-          msg.comment
-        );
-
-        return new ResponseBuilder().with(msg.requestId).with(id).build();
-
-      case Action.CREATE_REPLY:
-        this.discussionService.replyTo(
-          msg.discussionId,
-          this.authService.whoAmI(msg.clientId) || "",
-          msg.comment
-        );
-
-        return new ResponseBuilder().with(msg.requestId).build();
-
-      case Action.GET_DISCUSSION:
-        const discussion = this.discussionService.get(msg.discussionId);
-        const disscussionResponse = this.toDiscussionResponse(discussion);
-
-        return new ResponseBuilder()
-          .with(msg.requestId)
-          .with(disscussionResponse)
-          .build();
-
-      case Action.LIST_DISCUSSIONS:
-        const discussions = this.discussionService.list(msg.referencePrefix);
-        const discussionsJoined = discussions.map(this.toDiscussionResponse);
-
-        return new ResponseBuilder()
-          .with(msg.requestId)
-          .withList(discussionsJoined)
-          .build();
     }
   }
 

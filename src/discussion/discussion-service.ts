@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
+import logger from "../logger/logger";
 
 export interface Comment {
   id: string;
@@ -29,9 +30,11 @@ export class DiscussionService {
     reference: string,
     commentContent: string
   ): string {
-    console.log(
-      `Creating discussion for reference: ${reference} with content: ${commentContent}`
-    );
+    logger.info("Creating discussion", {
+      clientName,
+      reference,
+      commentContent,
+    });
 
     const id = uuidv4();
 
@@ -56,9 +59,11 @@ export class DiscussionService {
   }
 
   replyTo(discussionId: string, clientName: string, content: string): boolean {
-    console.log(
-      `Replying to discussion ID: ${discussionId} with content: ${content}`
-    );
+    logger.info("Replying to discussion", {
+      discussionId,
+      clientName,
+      content,
+    });
 
     const discussion = this.discussions[discussionId];
 
@@ -81,13 +86,13 @@ export class DiscussionService {
   }
 
   get(discussionId: string): Discussion | null {
-    console.log("Getting discussion with ID: " + discussionId);
+    logger.debug("Getting discussion", { discussionId });
 
     return this.discussions[discussionId] || null;
   }
 
   list(referencePrefix: string): Discussion[] {
-    console.log("Listing discussions for prefix: " + referencePrefix);
+    logger.debug("Listing discussions", { referencePrefix });
 
     return Object.values(this.discussions)
       .filter((d) => {
