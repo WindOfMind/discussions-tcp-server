@@ -3,15 +3,14 @@ import {
     Discussion,
 } from "../../discussion/discussion-service";
 import { ResponseBuilder } from "../response-builder";
-import { MessageHandler, GetDiscussionMessage } from "../types";
+import { MessageHandler, Message } from "../types";
 
-export class GetDiscussionHandler
-    implements MessageHandler<GetDiscussionMessage>
-{
+export class GetDiscussionHandler implements MessageHandler {
     constructor(private discussionService: DiscussionService) {}
 
-    handle(msg: GetDiscussionMessage): string {
-        const discussion = this.discussionService.get(msg.discussionId);
+    handle(msg: Message, payload: string[]): string {
+        const discussionId = payload[0] || "";
+        const discussion = this.discussionService.get(discussionId);
         const discussionResponse = this.toDiscussionResponse(discussion);
 
         return new ResponseBuilder()

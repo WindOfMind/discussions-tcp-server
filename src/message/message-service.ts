@@ -1,6 +1,6 @@
 import { AuthService } from "../auth/auth-service";
 import { DiscussionService } from "../discussion/discussion-service";
-import { Message, Action, MessageHandler } from "./types";
+import { Action, Actions, Message, MessageHandler } from "./types";
 import { SignInHandler } from "./handler/signin-handler";
 import { WhoAmIHandler } from "./handler/whoami-handler";
 import { SignOutHandler } from "./handler/signout-handler";
@@ -35,61 +35,34 @@ export class MessageService {
     processMessage(data: Buffer, clientId: string): string {
         const msg = this.parseMessage(data, clientId);
         const handler = this.messageHandlers[msg.action];
-        return handler.handle(msg);
+        return handler.handle(msg, msg.payload);
     }
 
     private parseMessage(data: Buffer, clientId: string): Message {
         const message = data.toString().trimEnd();
         const parts = message.split("|");
-        const requestId = parts[0];
-        const action = parts[1] as Action;
 
-        switch (action) {
-            case Action.SIGN_IN:
-                return {
-                    requestId,
-                    action,
-                    clientId,
-                    clientName: parts[2] || "",
-                };
-
-            case Action.WHOAMI:
-            case Action.SIGN_OUT:
-                return { requestId, action, clientId };
-
-            case Action.CREATE_DISCUSSION:
-                return {
-                    requestId,
-                    action,
-                    clientId,
-                    reference: parts[2] || "",
-                    comment: parts[3] || "",
-                };
-
-            case Action.CREATE_REPLY:
-                return {
-                    requestId,
-                    action,
-                    clientId,
-                    discussionId: parts[2] || "",
-                    comment: parts[3] || "",
-                };
-
-            case Action.GET_DISCUSSION:
-                return {
-                    requestId,
-                    action,
-                    clientId,
-                    discussionId: parts[2] || "",
-                };
-
-            case Action.LIST_DISCUSSIONS:
-                return {
-                    requestId,
-                    action,
-                    clientId,
-                    referencePrefix: parts[2] || "",
-                };
+        if (parts.length < 2) {
+            throw new Error("Invalid message format");
         }
+
+        const requestId = parts[0];
+
+        if (requestId.length !== 7) {
+            throw new Error("Request ID must be 7 characters long");
+        }
+
+        const action = parts[1];
+
+        if (!Actions.includes(action)) {
+            throw new Error(`Unknown action: ${action}`);
+        }
+
+        return {
+            requestId,
+            action: action as Action,
+            clientId,
+            payload: parts.slice(2),
+        };
     }
 }

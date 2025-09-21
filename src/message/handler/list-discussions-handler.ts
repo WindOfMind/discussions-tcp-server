@@ -3,15 +3,14 @@ import {
     Discussion,
 } from "../../discussion/discussion-service";
 import { ResponseBuilder } from "../response-builder";
-import { MessageHandler, ListDiscussionsMessage } from "../types";
+import { MessageHandler, Message } from "../types";
 
-export class ListDiscussionsHandler
-    implements MessageHandler<ListDiscussionsMessage>
-{
+export class ListDiscussionsHandler implements MessageHandler {
     constructor(private discussionService: DiscussionService) {}
 
-    handle(msg: ListDiscussionsMessage): string {
-        const discussions = this.discussionService.list(msg.referencePrefix);
+    handle(msg: Message, payload: string[]): string {
+        const referencePrefix = payload[0] || "";
+        const discussions = this.discussionService.list(referencePrefix);
         const discussionsJoined = discussions.map(this.toDiscussionResponse);
 
         return new ResponseBuilder()

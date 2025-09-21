@@ -1,19 +1,22 @@
 import { AuthService } from "../../auth/auth-service";
 import { DiscussionService } from "../../discussion/discussion-service";
 import { ResponseBuilder } from "../response-builder";
-import { MessageHandler, CreateReplyMessage } from "../types";
+import { MessageHandler, Message } from "../types";
 
-export class CreateReplyHandler implements MessageHandler<CreateReplyMessage> {
+export class CreateReplyHandler implements MessageHandler {
     constructor(
         private authService: AuthService,
         private discussionService: DiscussionService
     ) {}
 
-    handle(msg: CreateReplyMessage): string {
+    handle(msg: Message, payload: string[]): string {
+        const discussionId = payload[0] || "";
+        const comment = payload[1] || "";
+
         this.discussionService.replyTo(
-            msg.discussionId,
+            discussionId,
             this.authService.whoAmI(msg.clientId) || "",
-            msg.comment
+            comment
         );
 
         return new ResponseBuilder().with(msg.requestId).build();

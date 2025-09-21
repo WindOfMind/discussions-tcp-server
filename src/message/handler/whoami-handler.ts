@@ -1,12 +1,12 @@
 import { AuthService } from "../../auth/auth-service";
 import { ResponseBuilder } from "../response-builder";
-import { MessageHandler, WhoAmIMessage } from "../types";
+import { MessageHandler, Message } from "../types";
 import logger from "../../logger/logger";
 
-export class WhoAmIHandler implements MessageHandler<WhoAmIMessage> {
+export class WhoAmIHandler implements MessageHandler {
     constructor(private authService: AuthService) {}
 
-    handle(msg: WhoAmIMessage): string {
+    handle(msg: Message, payload: string[]): string {
         const name = this.authService.whoAmI(msg.clientId);
 
         if (!name) {

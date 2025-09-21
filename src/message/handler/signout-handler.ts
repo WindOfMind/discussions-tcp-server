@@ -1,11 +1,11 @@
 import { AuthService } from "../../auth/auth-service";
 import { ResponseBuilder } from "../response-builder";
-import { MessageHandler, SignOutMessage } from "../types";
+import { MessageHandler, Message } from "../types";
 
-export class SignOutHandler implements MessageHandler<SignOutMessage> {
+export class SignOutHandler implements MessageHandler {
     constructor(private authService: AuthService) {}
 
-    handle(msg: SignOutMessage): string {
+    handle(msg: Message, payload: string[]): string {
         this.authService.signOut(msg.clientId);
 
         return new ResponseBuilder().with(msg.requestId).build();
