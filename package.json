@@ -1,17 +1,19 @@
 {
-  "name": "tcp-server-client",
-  "version": "1.0.0",
-  "description": "TCP server and client in TypeScript",
-  "main": "dist/index.js",
-  "scripts": {
-    "build": "tsc",
-    "start": "node dist/index.js",
-    "dev": "tsc && node dist/index.js"
-  },
-  "dependencies": {
-    "@types/node": "^20.8.0",
-    "typescript": "^5.2.2",
-    "uuid": "^13.0.0",
-    "winston": "^3.17.0"
-  }
+    "name": "tcp-server-client",
+    "version": "1.0.0",
+    "description": "TCP server and client in TypeScript",
+    "main": "dist/index.js",
+    "scripts": {
+        "build": "tsc",
+        "start": "node dist/index.js",
+        "dev": "tsc && node dist/index.js"
+    },
+    "dependencies": {
+        "@types/node": "^20.8.0",
+        "uuid": "^13.0.0",
+        "winston": "^3.17.0"
+    },
+    "devDependencies": {
+        "typescript": "^5.9.2"
+    }
 }

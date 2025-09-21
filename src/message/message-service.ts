@@ -1,146 +1,95 @@
 import { AuthService } from "../auth/auth-service";
-import {
-  Discussion,
-  DiscussionService,
-} from "../discussion/discussion-service";
-import { ResponseBuilder } from "./response-builder";
-import { Message, Action } from "./types";
-import logger from "../logger/logger";
+import { DiscussionService } from "../discussion/discussion-service";
+import { Message, Action, MessageHandler } from "./types";
+import { SignInHandler } from "./handler/signin-handler";
+import { WhoAmIHandler } from "./handler/whoami-handler";
+import { SignOutHandler } from "./handler/signout-handler";
+import { CreateDiscussionHandler } from "./handler/create-discussion-handler";
+import { CreateReplyHandler } from "./handler/create-reply-handler";
+import { GetDiscussionHandler } from "./handler/get-discussion-handler";
+import { ListDiscussionsHandler } from "./handler/list-discussions-handler";
 
 export class MessageService {
-  private authService = new AuthService();
-  private discussionService = new DiscussionService();
+    private authService = new AuthService();
+    private discussionService = new DiscussionService();
+    private messageHandlers: Record<Action, MessageHandler> = {
+        [Action.SIGN_IN]: new SignInHandler(this.authService),
+        [Action.WHOAMI]: new WhoAmIHandler(this.authService),
+        [Action.SIGN_OUT]: new SignOutHandler(this.authService),
+        [Action.CREATE_DISCUSSION]: new CreateDiscussionHandler(
+            this.authService,
+            this.discussionService
+        ),
+        [Action.CREATE_REPLY]: new CreateReplyHandler(
+            this.authService,
+            this.discussionService
+        ),
+        [Action.GET_DISCUSSION]: new GetDiscussionHandler(
+            this.discussionService
+        ),
+        [Action.LIST_DISCUSSIONS]: new ListDiscussionsHandler(
+            this.discussionService
+        ),
+    };
 
-  processMessage(data: Buffer, clientId: string): string {
-    const msg = this.parseMessage(data, clientId);
+    processMessage(data: Buffer, clientId: string): string {
+        const msg = this.parseMessage(data, clientId);
+        const handler = this.messageHandlers[msg.action];
+        return handler.handle(msg);
+    }
 
-    switch (msg.action) {
-      case Action.SIGN_IN:
-        this.authService.signIn(msg.clientId, msg.clientName);
+    private parseMessage(data: Buffer, clientId: string): Message {
+        const message = data.toString().trimEnd();
+        const parts = message.split("|");
+        const requestId = parts[0];
+        const action = parts[1] as Action;
 
-        return new ResponseBuilder().with(msg.requestId).build();
+        switch (action) {
+            case Action.SIGN_IN:
+                return {
+                    requestId,
+                    action,
+                    clientId,
+                    clientName: parts[2] || "",
+                };
 
-      case Action.WHOAMI:
-        const name = this.authService.whoAmI(msg.clientId);
+            case Action.WHOAMI:
+            case Action.SIGN_OUT:
+                return { requestId, action, clientId };
 
-        if (!name) {
-          logger.warn("No name found for client ID", {
-            clientId: msg.clientId,
-          });
+            case Action.CREATE_DISCUSSION:
+                return {
+                    requestId,
+                    action,
+                    clientId,
+                    reference: parts[2] || "",
+                    comment: parts[3] || "",
+                };
 
-          return new ResponseBuilder().with(msg.requestId).build();
+            case Action.CREATE_REPLY:
+                return {
+                    requestId,
+                    action,
+                    clientId,
+                    discussionId: parts[2] || "",
+                    comment: parts[3] || "",
+                };
+
+            case Action.GET_DISCUSSION:
+                return {
+                    requestId,
+                    action,
+                    clientId,
+                    discussionId: parts[2] || "",
+                };
+
+            case Action.LIST_DISCUSSIONS:
+                return {
+                    requestId,
+                    action,
+                    clientId,
+                    referencePrefix: parts[2] || "",
+                };
         }
-
-        return new ResponseBuilder().with(msg.requestId).with(name).build();
-
-      case Action.SIGN_OUT:
-        this.authService.signOut(msg.clientId);
-
-        return new ResponseBuilder().with(msg.requestId).build();
-
-      case Action.CREATE_DISCUSSION:
-        const id = this.discussionService.create(
-          this.authService.whoAmI(msg.clientId) || "",
-          msg.reference,
-          msg.comment
-        );
-
-        return new ResponseBuilder().with(msg.requestId).with(id).build();
-
-      case Action.CREATE_REPLY:
-        this.discussionService.replyTo(
-          msg.discussionId,
-          this.authService.whoAmI(msg.clientId) || "",
-          msg.comment
-        );
-
-        return new ResponseBuilder().with(msg.requestId).build();
-
-      case Action.GET_DISCUSSION:
-        const discussion = this.discussionService.get(msg.discussionId);
-        const disscussionResponse = this.toDiscussionResponse(discussion);
-
-        return new ResponseBuilder()
-          .with(msg.requestId)
-          .with(disscussionResponse)
-          .build();
-
-      case Action.LIST_DISCUSSIONS:
-        const discussions = this.discussionService.list(msg.referencePrefix);
-        const discussionsJoined = discussions.map(this.toDiscussionResponse);
-
-        return new ResponseBuilder()
-          .with(msg.requestId)
-          .withList(discussionsJoined)
-          .build();
     }
-  }
-
-  private parseMessage(data: Buffer, clientId: string): Message {
-    const message = data.toString().trimEnd();
-    const parts = message.split("|");
-    const requestId = parts[0];
-    const action = parts[1] as Action;
-
-    switch (action) {
-      case Action.SIGN_IN:
-        return {
-          requestId,
-          action,
-          clientId,
-          clientName: parts[2] || "",
-        };
-
-      case Action.WHOAMI:
-      case Action.SIGN_OUT:
-        return { requestId, action, clientId };
-
-      case Action.CREATE_DISCUSSION:
-        return {
-          requestId,
-          action,
-          clientId,
-          reference: parts[2] || "",
-          comment: parts[3] || "",
-        };
-
-      case Action.CREATE_REPLY:
-        return {
-          requestId,
-          action,
-          clientId,
-          discussionId: parts[2] || "",
-          comment: parts[3] || "",
-        };
-
-      case Action.GET_DISCUSSION:
-        return {
-          requestId,
-          action,
-          clientId,
-          discussionId: parts[2] || "",
-        };
-
-      case Action.LIST_DISCUSSIONS:
-        return {
-          requestId,
-          action,
-          clientId,
-          referencePrefix: parts[2] || "",
-        };
-    }
-  }
-
-  private toDiscussionResponse(discussion: Discussion | null): string {
-    if (!discussion) {
-      return "";
-    }
-
-    const comments =
-      discussion?.comments.map((c) =>
-        new ResponseBuilder().with(c.clientName).with(c.content, true).build()
-      ) ?? [];
-
-    return new ResponseBuilder().withList(comments).build();
-  }
 }
