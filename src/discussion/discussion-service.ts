@@ -65,11 +65,7 @@ export class DiscussionService {
         this.discussionIndex[reference].push(discussionId);
     }
 
-    replyTo(
-        discussionId: string,
-        clientName: string,
-        content: string
-    ): boolean {
+    replyTo(discussionId: string, clientName: string, content: string): void {
         logger.info("Replying to discussion", {
             discussionId,
             clientName,
@@ -77,22 +73,22 @@ export class DiscussionService {
 
         const discussion = this.discussions[discussionId];
 
-        if (discussion) {
-            const reply = {
-                id: uuidv4(),
-                discussionId: discussionId,
-                content: content,
-                clientName: clientName,
-                ts: Date.now(),
-            };
+        if (!discussion) {
+            logger.error("Discussion not found", { discussionId });
 
-            this.comments[reply.id] = reply;
-            discussion.commentIds.push(reply.id);
-
-            return true;
+            throw new Error("Discussion not found");
         }
 
-        return false;
+        const reply = {
+            id: uuidv4(),
+            discussionId: discussionId,
+            content: content,
+            clientName: clientName,
+            ts: Date.now(),
+        };
+
+        this.comments[reply.id] = reply;
+        discussion.commentIds.push(reply.id);
     }
 
     get(discussionId: string): DiscussionWithComments | null {
