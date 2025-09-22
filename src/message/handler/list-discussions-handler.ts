@@ -1,5 +1,4 @@
 import { DiscussionService } from "../../discussion/discussion-service";
-import { DiscussionWithComments } from "../../discussion/types";
 import logger from "../../logger/logger";
 import { ResponseBuilder } from "../response-builder";
 import { MessageHandler, Message } from "../types";
@@ -25,6 +24,8 @@ export class ListDiscussionsHandler implements MessageHandler {
         const discussions = this.discussionService.list(referencePrefix);
         const discussionsResponses = discussions.map(toDiscussionResponse);
 
+        // should return in the format:
+        // requestId|(discussionId|reference|(userName|comment,...),(),...)
         return new ResponseBuilder()
             .with(msg.requestId)
             .withList(discussionsResponses)

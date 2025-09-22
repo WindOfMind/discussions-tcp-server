@@ -18,6 +18,7 @@ export class SignInHandler implements MessageHandler {
 
         this.authService.signIn(msg.clientId, payload[0]);
 
+        // should return in the format: requestId
         return new ResponseBuilder().with(msg.requestId).build();
     }
 }

@@ -24,6 +24,7 @@ export class CreateDiscussionHandler implements MessageHandler {
 
         const id = this.discussionService.create(userName, reference, comment);
 
+        // should return in the format: requestId|discussionId
         return new ResponseBuilder().with(msg.requestId).with(id).build();
     }
 }

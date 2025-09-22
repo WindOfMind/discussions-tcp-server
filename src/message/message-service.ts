@@ -8,6 +8,7 @@ import { CreateDiscussionHandler } from "./handler/create-discussion-handler";
 import { CreateReplyHandler } from "./handler/create-reply-handler";
 import { GetDiscussionHandler } from "./handler/get-discussion-handler";
 import { ListDiscussionsHandler } from "./handler/list-discussions-handler";
+import logger from "../logger/logger";
 
 export class MessageService {
     private messageHandlers: Record<Action, MessageHandler>;
@@ -38,36 +39,42 @@ export class MessageService {
     }
 
     processMessage(data: Buffer, clientId: string): string {
-        const msg = this.parseMessage(data, clientId);
+        const msg = parseMessage(data, clientId);
+
+        logger.info(`Processing message: ${msg.action}`, {
+            clientId: msg.clientId,
+        });
+
         const handler = this.messageHandlers[msg.action];
+
         return handler.handle(msg, msg.payload);
     }
+}
 
-    private parseMessage(data: Buffer, clientId: string): Message {
-        const message = data.toString().trimEnd();
-        const parts = message.split("|");
+const requestIdRegex = /^[a-z]{7}$/;
 
-        if (parts.length < 2) {
-            throw new Error("Invalid message format");
-        }
+export function parseMessage(data: Buffer, clientId: string): Message {
+    const message = data.toString().trimEnd();
+    const parts = message.split("|");
 
-        const requestId = parts[0];
-
-        if (requestId.length !== 7) {
-            throw new Error("Request ID must be 7 characters long");
-        }
-
-        const action = parts[1];
-
-        if (!Actions.includes(action)) {
-            throw new Error(`Unknown action: ${action}`);
-        }
-
-        return {
-            requestId,
-            action: action as Action,
-            clientId,
-            payload: parts.slice(2),
-        };
+    if (parts.length < 2) {
+        throw new Error("Invalid message format");
     }
+
+    const requestId = parts[0];
+    if (!requestIdRegex.test(requestId)) {
+        throw new Error("Request ID must be 7 lowercase letters");
+    }
+
+    const action = parts[1];
+    if (!Actions.includes(action)) {
+        throw new Error(`Unknown action: ${action}`);
+    }
+
+    return {
+        requestId,
+        action: action as Action,
+        clientId,
+        payload: parts.slice(2),
+    };
 }

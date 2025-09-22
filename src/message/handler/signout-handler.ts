@@ -8,6 +8,7 @@ export class SignOutHandler implements MessageHandler {
     handle(msg: Message, payload: string[]): string {
         this.authService.signOut(msg.clientId);
 
+        // should return in the format: requestId
         return new ResponseBuilder().with(msg.requestId).build();
     }
 }

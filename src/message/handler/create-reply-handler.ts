@@ -24,6 +24,7 @@ export class CreateReplyHandler implements MessageHandler {
 
         this.discussionService.replyTo(discussionId, userName, comment);
 
+        // should return in the format: requestId
         return new ResponseBuilder().with(msg.requestId).build();
     }
 }

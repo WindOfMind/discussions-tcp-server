@@ -21,6 +21,7 @@ export class GetDiscussionHandler implements MessageHandler {
         const discussion = this.discussionService.get(discussionId);
         const discussionResponse = toDiscussionResponse(discussion);
 
+        // should return in the format: requestId|discussionId|reference|(userName|comment,...)
         return new ResponseBuilder()
             .with(msg.requestId)
             .with(discussionResponse)
