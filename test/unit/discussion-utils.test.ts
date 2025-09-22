@@ -31,13 +31,14 @@ describe("toDiscussionResponse", () => {
     it("returns response with id and reference and empty list when discussion has no comments", () => {
         const discussion = makeDiscussion([]);
         const response = toDiscussionResponse(discussion);
-        console.log(response);
+
         expect(response).toBe("d1|ref");
     });
 
     it("returns formatted response for single comment", () => {
         const comment = makeComment({ userName: "Alice", content: "Hello!" });
         const discussion = makeDiscussion([comment]);
+
         expect(toDiscussionResponse(discussion)).toBe("d1|ref|(Alice|Hello!)");
     });
 
@@ -53,6 +54,7 @@ describe("toDiscussionResponse", () => {
             content: "Hi!",
         });
         const discussion = makeDiscussion([comment1, comment2]);
+
         expect(toDiscussionResponse(discussion)).toBe(
             "d1|ref|(Alice|Hello!,Bob|Hi!)"
         );
