@@ -10,14 +10,19 @@ export class CreateDiscussionHandler implements MessageHandler {
     ) {}
 
     handle(msg: Message, payload: string[]): string {
-        const reference = payload[0] || "";
-        const comment = payload[1] || "";
+        const reference = payload[0];
+        const comment = payload[1];
 
-        const id = this.discussionService.create(
-            this.authService.whoAmI(msg.clientId) || "",
-            reference,
-            comment
-        );
+        if (!reference || !comment) {
+            throw new Error("Reference and comment are required");
+        }
+
+        const userName = this.authService.whoAmI(msg.clientId);
+        if (!userName) {
+            throw new Error("Not signed in");
+        }
+
+        const id = this.discussionService.create(userName, reference, comment);
 
         return new ResponseBuilder().with(msg.requestId).with(id).build();
     }

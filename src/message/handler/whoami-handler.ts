@@ -14,7 +14,7 @@ export class WhoAmIHandler implements MessageHandler {
                 clientId: msg.clientId,
             });
 
-            return new ResponseBuilder().with(msg.requestId).build();
+            throw new Error("Not signed in");
         }
 
         return new ResponseBuilder().with(msg.requestId).with(name).build();

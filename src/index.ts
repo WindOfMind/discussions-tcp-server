@@ -14,10 +14,17 @@ const tcpServer = net.createServer((socket: net.Socket) => {
 
     socket.on("data", (data: Buffer) => {
         logger.debug("Server received", { data: data.toString(), clientId });
-        const response = messageService.processMessage(data, clientId);
-        logger.debug("Server sending", { response, clientId });
 
-        socket.write(response);
+        try {
+            const response = messageService.processMessage(data, clientId);
+            logger.debug("Server sending", { response, clientId });
+
+            socket.write(response);
+        } catch (error) {
+            logger.error("Error processing message", { error, clientId });
+
+            socket.write("Error processing message");
+        }
     });
 
     socket.on("end", () => {

@@ -30,7 +30,7 @@ export class DiscussionService {
             throw new Error("Invalid reference format");
         }
 
-        // in the real DB, better to use it as a external ID
+        // in the real DB, better to use it as a external ID, not PK
         const id = uuidv4();
         const referenceStart = reference.split(".")[0];
 
@@ -65,10 +65,10 @@ export class DiscussionService {
         this.discussionIndex[reference].push(discussionId);
     }
 
-    replyTo(discussionId: string, clientName: string, content: string): void {
+    replyTo(discussionId: string, userName: string, content: string): void {
         logger.info("Replying to discussion", {
             discussionId,
-            clientName,
+            userName,
         });
 
         const discussion = this.discussions[discussionId];
@@ -83,7 +83,7 @@ export class DiscussionService {
             id: uuidv4(),
             discussionId: discussionId,
             content: content,
-            clientName: clientName,
+            clientName: userName,
             ts: Date.now(),
         };
 

@@ -1,5 +1,6 @@
 import { DiscussionService } from "../../discussion/discussion-service";
 import { DiscussionWithComments } from "../../discussion/types";
+import logger from "../../logger/logger";
 import { ResponseBuilder } from "../response-builder";
 import { MessageHandler, Message } from "../types";
 
@@ -7,13 +8,25 @@ export class ListDiscussionsHandler implements MessageHandler {
     constructor(private discussionService: DiscussionService) {}
 
     handle(msg: Message, payload: string[]): string {
-        const referencePrefix = payload[0] || "";
+        const referencePrefix = payload[0];
+
+        if (!referencePrefix) {
+            logger.warn(
+                "No reference prefix provided for listing discussions",
+                {
+                    clientId: msg.clientId,
+                }
+            );
+
+            return new ResponseBuilder().with(msg.requestId).build();
+        }
+
         const discussions = this.discussionService.list(referencePrefix);
-        const discussionsJoined = discussions.map(this.toDiscussionResponse);
+        const discussionsResponses = discussions.map(this.toDiscussionResponse);
 
         return new ResponseBuilder()
             .with(msg.requestId)
-            .withList(discussionsJoined)
+            .withList(discussionsResponses)
             .build();
     }
 

@@ -12,6 +12,8 @@ export class SignInHandler implements MessageHandler {
             logger.warn("No client name provided for sign-in", {
                 clientId: msg.clientId,
             });
+
+            throw new Error("No client name provided");
         }
 
         this.authService.signIn(msg.clientId, payload[0]);

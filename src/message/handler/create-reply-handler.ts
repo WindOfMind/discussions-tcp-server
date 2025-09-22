@@ -10,14 +10,19 @@ export class CreateReplyHandler implements MessageHandler {
     ) {}
 
     handle(msg: Message, payload: string[]): string {
-        const discussionId = payload[0] || "";
-        const comment = payload[1] || "";
+        const discussionId = payload[0];
+        const comment = payload[1];
 
-        this.discussionService.replyTo(
-            discussionId,
-            this.authService.whoAmI(msg.clientId) || "",
-            comment
-        );
+        if (!discussionId || !comment) {
+            throw new Error("Discussion ID and comment are required");
+        }
+
+        const userName = this.authService.whoAmI(msg.clientId);
+        if (!userName) {
+            throw new Error("Not signed in");
+        }
+
+        this.discussionService.replyTo(discussionId, userName, comment);
 
         return new ResponseBuilder().with(msg.requestId).build();
     }
