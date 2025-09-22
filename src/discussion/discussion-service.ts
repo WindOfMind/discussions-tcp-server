@@ -1,105 +1,130 @@
 import { v4 as uuidv4 } from "uuid";
 import logger from "../logger/logger";
-
-export interface Comment {
-  id: string;
-  discussionId: string;
-  content: string;
-  clientName: string;
-  ts: number;
-}
-
-export interface Discussion {
-  id: string;
-  reference: string;
-  comments: Comment[];
-  ts: number;
-}
+import { Discussion, Comment, DiscussionWithComments } from "./types";
 
 export class DiscussionService {
-  private discussions: {
-    [id: string]: Discussion;
-  } = {};
+    private discussions: {
+        [id: string]: Discussion;
+    } = {};
 
-  private comments: {
-    [id: string]: Comment;
-  } = {};
+    private comments: {
+        [id: string]: Comment;
+    } = {};
 
-  create(
-    clientName: string,
-    reference: string,
-    commentContent: string
-  ): string {
-    logger.info("Creating discussion", {
-      clientName,
-      reference,
-      commentContent,
-    });
+    // quick access by reference prefix
+    private discussionIndex: {
+        [reference: string]: string[];
+    } = {};
 
-    const id = uuidv4();
+    create(
+        clientName: string,
+        reference: string,
+        commentContent: string
+    ): string {
+        logger.info("Creating discussion", {
+            clientName,
+            reference,
+        });
 
-    const comment = {
-      id: uuidv4(),
-      discussionId: id,
-      content: commentContent,
-      clientName: clientName,
-      ts: Date.now(),
-    };
+        if (!reference.includes(".")) {
+            throw new Error("Invalid reference format");
+        }
 
-    this.comments[comment.id] = comment;
+        // in the real DB, better to use it as a external ID
+        const id = uuidv4();
+        const referenceStart = reference.split(".")[0];
 
-    this.discussions[id] = {
-      id,
-      reference,
-      comments: [comment],
-      ts: Date.now(),
-    };
+        const comment = {
+            id: uuidv4(),
+            discussionId: id,
+            content: commentContent,
+            clientName: clientName,
+            ts: Date.now(),
+        };
 
-    return id;
-  }
+        this.comments[comment.id] = comment;
+        this.discussions[id] = {
+            id,
+            reference,
+            referenceStart,
+            commentIds: [comment.id],
+            ts: Date.now(),
+        };
 
-  replyTo(discussionId: string, clientName: string, content: string): boolean {
-    logger.info("Replying to discussion", {
-      discussionId,
-      clientName,
-      content,
-    });
+        this.updateDiscussionIndex(reference, id);
+        this.updateDiscussionIndex(referenceStart, id);
 
-    const discussion = this.discussions[discussionId];
-
-    if (discussion) {
-      const reply = {
-        id: uuidv4(),
-        discussionId: discussionId,
-        content: content,
-        clientName: clientName,
-        ts: Date.now(),
-      };
-
-      this.comments[reply.id] = reply;
-      discussion.comments.push(reply);
-
-      return true;
+        return id;
     }
 
-    return false;
-  }
+    private updateDiscussionIndex(reference: string, discussionId: string) {
+        if (!this.discussionIndex[reference]) {
+            this.discussionIndex[reference] = [];
+        }
 
-  get(discussionId: string): Discussion | null {
-    logger.debug("Getting discussion", { discussionId });
+        this.discussionIndex[reference].push(discussionId);
+    }
 
-    return this.discussions[discussionId] || null;
-  }
+    replyTo(
+        discussionId: string,
+        clientName: string,
+        content: string
+    ): boolean {
+        logger.info("Replying to discussion", {
+            discussionId,
+            clientName,
+        });
 
-  list(referencePrefix: string): Discussion[] {
-    logger.debug("Listing discussions", { referencePrefix });
+        const discussion = this.discussions[discussionId];
 
-    return Object.values(this.discussions)
-      .filter((d) => {
-        const parts = d.reference.split(".");
+        if (discussion) {
+            const reply = {
+                id: uuidv4(),
+                discussionId: discussionId,
+                content: content,
+                clientName: clientName,
+                ts: Date.now(),
+            };
 
-        return parts[0] === referencePrefix || d.reference === referencePrefix;
-      })
-      .sort((a, b) => a.ts - b.ts);
-  }
+            this.comments[reply.id] = reply;
+            discussion.commentIds.push(reply.id);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    get(discussionId: string): DiscussionWithComments | null {
+        logger.info("Getting discussion", { discussionId });
+
+        const discussion = this.discussions[discussionId] || null;
+
+        if (discussion) {
+            const comments = discussion.commentIds.map(
+                (id) => this.comments[id]
+            );
+
+            return {
+                ...discussion,
+                comments,
+            };
+        }
+
+        return null;
+    }
+
+    /**
+     * Lists discussions by reference prefix (e.g. "video1" for "video1.1", "video1.2", etc.)
+     * Prefix works only for the whole parts.
+     */
+    list(referencePrefix: string): DiscussionWithComments[] {
+        logger.info("Listing discussions", { referencePrefix });
+        const discussions = this.discussionIndex[referencePrefix] || [];
+
+        return discussions
+            .map((id) => this.get(id))
+            .filter((d): d is DiscussionWithComments => d !== null)
+            .sort((a, b) => a.ts - b.ts);
+    }
 }

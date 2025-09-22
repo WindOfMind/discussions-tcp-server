@@ -9,11 +9,11 @@
         "dev": "tsc && node dist/index.js"
     },
     "dependencies": {
-        "@types/node": "^20.8.0",
         "uuid": "^13.0.0",
         "winston": "^3.17.0"
     },
     "devDependencies": {
+        "@types/node": "^20.8.0",
         "typescript": "^5.9.2"
     }
 }

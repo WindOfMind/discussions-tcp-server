@@ -10,27 +10,32 @@ import { GetDiscussionHandler } from "./handler/get-discussion-handler";
 import { ListDiscussionsHandler } from "./handler/list-discussions-handler";
 
 export class MessageService {
-    private authService = new AuthService();
-    private discussionService = new DiscussionService();
-    private messageHandlers: Record<Action, MessageHandler> = {
-        [Action.SIGN_IN]: new SignInHandler(this.authService),
-        [Action.WHOAMI]: new WhoAmIHandler(this.authService),
-        [Action.SIGN_OUT]: new SignOutHandler(this.authService),
-        [Action.CREATE_DISCUSSION]: new CreateDiscussionHandler(
-            this.authService,
-            this.discussionService
-        ),
-        [Action.CREATE_REPLY]: new CreateReplyHandler(
-            this.authService,
-            this.discussionService
-        ),
-        [Action.GET_DISCUSSION]: new GetDiscussionHandler(
-            this.discussionService
-        ),
-        [Action.LIST_DISCUSSIONS]: new ListDiscussionsHandler(
-            this.discussionService
-        ),
-    };
+    private messageHandlers: Record<Action, MessageHandler>;
+
+    constructor(
+        private readonly discussionService: DiscussionService,
+        private readonly authService: AuthService
+    ) {
+        this.messageHandlers = {
+            [Action.SIGN_IN]: new SignInHandler(this.authService),
+            [Action.WHOAMI]: new WhoAmIHandler(this.authService),
+            [Action.SIGN_OUT]: new SignOutHandler(this.authService),
+            [Action.CREATE_DISCUSSION]: new CreateDiscussionHandler(
+                this.authService,
+                this.discussionService
+            ),
+            [Action.CREATE_REPLY]: new CreateReplyHandler(
+                this.authService,
+                this.discussionService
+            ),
+            [Action.GET_DISCUSSION]: new GetDiscussionHandler(
+                this.discussionService
+            ),
+            [Action.LIST_DISCUSSIONS]: new ListDiscussionsHandler(
+                this.discussionService
+            ),
+        };
+    }
 
     processMessage(data: Buffer, clientId: string): string {
         const msg = this.parseMessage(data, clientId);
