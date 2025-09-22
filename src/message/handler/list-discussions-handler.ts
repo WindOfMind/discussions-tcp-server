@@ -1,7 +1,5 @@
-import {
-    DiscussionService,
-    Discussion,
-} from "../../discussion/discussion-service";
+import { DiscussionService } from "../../discussion/discussion-service";
+import { DiscussionWithComments } from "../../discussion/types";
 import { ResponseBuilder } from "../response-builder";
 import { MessageHandler, Message } from "../types";
 
@@ -19,7 +17,9 @@ export class ListDiscussionsHandler implements MessageHandler {
             .build();
     }
 
-    private toDiscussionResponse(discussion: Discussion | null): string {
+    private toDiscussionResponse(
+        discussion: DiscussionWithComments | null
+    ): string {
         if (!discussion) {
             return "";
         }
