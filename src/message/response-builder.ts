@@ -1,33 +1,35 @@
 export class ResponseBuilder {
-  private parts: string[] = [];
+    constructor(private readonly options = { withEndLine: true }) {}
 
-  with(part: string, escape: boolean = false): ResponseBuilder {
-    this.parts.push(escape ? this.escape(part) : part);
+    private parts: string[] = [];
 
-    return this;
-  }
+    with(part: string, escape: boolean = false): ResponseBuilder {
+        this.parts.push(escape ? this.escape(part) : part);
 
-  withList(parts: string[]): ResponseBuilder {
-    if (parts.length === 0) {
-      return this;
+        return this;
     }
 
-    this.parts.push(`(${parts.join(",")})`);
+    withList(parts: string[]): ResponseBuilder {
+        if (parts.length === 0) {
+            return this;
+        }
 
-    return this;
-  }
+        this.parts.push(`(${parts.join(",")})`);
 
-  build(): string {
-    return this.parts.join("|") + "\n";
-  }
-
-  private escape = (str: string): string => {
-    const escaped = str.replaceAll('"', '""');
-
-    if (escaped.includes(",")) {
-      return `"${escaped}"`;
+        return this;
     }
 
-    return escaped;
-  };
+    build(): string {
+        return this.parts.join("|") + (this.options.withEndLine ? "\n" : "");
+    }
+
+    private escape = (str: string): string => {
+        const escaped = str.replaceAll('"', '""');
+
+        if (escaped.includes(",")) {
+            return `"${escaped}"`;
+        }
+
+        return escaped;
+    };
 }

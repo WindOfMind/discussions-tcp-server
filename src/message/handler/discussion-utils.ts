@@ -10,8 +10,15 @@ export const toDiscussionResponse = (
 
     const comments =
         discussion?.comments.map((c) =>
-            new ResponseBuilder().with(c.userName).with(c.content, true).build()
+            new ResponseBuilder({ withEndLine: false })
+                .with(c.userName)
+                .with(c.content, true)
+                .build()
         ) ?? [];
 
-    return new ResponseBuilder().withList(comments).build();
+    return new ResponseBuilder({ withEndLine: false })
+        .with(discussion.id)
+        .with(discussion.reference)
+        .withList(comments)
+        .build();
 };
