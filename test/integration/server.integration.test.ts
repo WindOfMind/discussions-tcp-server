@@ -61,35 +61,43 @@ describe("Server integration tests", () => {
     });
 
     test("should create a discussion", async () => {
+        // arrange
         await sendMessage("ougmcim|SIGN_IN|janedoe\n");
         const response = await sendMessage(
-            `ykkngzx|CREATE_DISCUSSION|iofetzv.0s|Hey, folks. What do you think of my video? Does it have enough "polish"?`
+            `ykkngzx|CREATE_DISCUSSION|iofetzv.0s|Hey, folks. What do you think of my video? Does it have enough "polish"?\n`
         );
 
         const discussionId = response.split("|")[1].trim();
 
+        // act
         const getDiscussionResponse = await sendMessage(
-            `opqrstu|GET_DISCUSSION|${discussionId}`
+            `opqrstu|GET_DISCUSSION|${discussionId}\n`
         );
 
+        // assert
         expect(getDiscussionResponse).toBe(
             `opqrstu|${discussionId}|iofetzv.0s|(janedoe|"Hey, folks. What do you think of my video? Does it have enough ""polish""?")\n`
         );
     });
 
     test("should create a reply", async () => {
+        // arrange
         await sendMessage("abcdefg|SIGN_IN|janedoe");
         const createResponse = await sendMessage(
             `ykkngzx|CREATE_DISCUSSION|iofetzv.0s|Hey, folks. What do you think of my video? Does it have enough "polish"?`
         );
         const discussionId = createResponse.split("|")[1].trim();
+
+        // act
         const replyResponse = await sendMessage(
-            `sqahhfj|CREATE_REPLY|${discussionId}|I think it's great!`
+            `sqahhfj|CREATE_REPLY|${discussionId}|I think it's great!\n`
         );
+
+        // assert
         expect(replyResponse).toBe("sqahhfj\n");
 
         const getDiscussionResponse = await sendMessage(
-            `opqrstu|GET_DISCUSSION|${discussionId}`
+            `opqrstu|GET_DISCUSSION|${discussionId}\n`
         );
 
         expect(getDiscussionResponse).toBe(
@@ -97,20 +105,28 @@ describe("Server integration tests", () => {
         );
     });
 
-    test("should list discussions", async () => {
+    test("should list discussions by prefix", async () => {
+        // arrange
         await sendMessage("abcdefg|SIGN_IN|janedoe");
         const createResponse = await sendMessage(
-            `ykkngzx|CREATE_DISCUSSION|iofetzv.0s|Hey, folks. What do you think of my video? Does it have enough "polish"?`
+            `ykkngzx|CREATE_DISCUSSION|iofetzv.0s|Hey, folks. What do you think of my video? Does it have enough "polish"?\n`
         );
         const discussionId = createResponse.split("|")[1].trim();
 
         const createResponse2 = await sendMessage(
-            `ykkngzx|CREATE_DISCUSSION|iofetzv.1m30s|I think it's great!`
+            `ykkngzx|CREATE_DISCUSSION|iofetzv.1m30s|I think it's great!\n`
         );
         const discussionId2 = createResponse2.split("|")[1].trim();
 
+        // should not return it
+        await sendMessage(
+            `ykkngzx|CREATE_DISCUSSION|iofetzvfoo.1m30s|I think it's great!\n`
+        );
+
+        // act
         const response = await sendMessage("opqrstu|LIST_DISCUSSIONS|iofetzv");
 
+        // assert
         expect(response).toBe(
             `opqrstu|(${discussionId}|iofetzv.0s|(janedoe|"Hey, folks. What do you think of my video? Does it have enough ""polish""?"),${discussionId2}|iofetzv.1m30s|(janedoe|I think it's great!))\n`
         );
