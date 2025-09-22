@@ -3,6 +3,7 @@ import { DiscussionWithComments } from "../../discussion/types";
 import logger from "../../logger/logger";
 import { ResponseBuilder } from "../response-builder";
 import { MessageHandler, Message } from "../types";
+import { toDiscussionResponse } from "./discussion-utils";
 
 export class ListDiscussionsHandler implements MessageHandler {
     constructor(private discussionService: DiscussionService) {}
@@ -22,29 +23,11 @@ export class ListDiscussionsHandler implements MessageHandler {
         }
 
         const discussions = this.discussionService.list(referencePrefix);
-        const discussionsResponses = discussions.map(this.toDiscussionResponse);
+        const discussionsResponses = discussions.map(toDiscussionResponse);
 
         return new ResponseBuilder()
             .with(msg.requestId)
             .withList(discussionsResponses)
             .build();
-    }
-
-    private toDiscussionResponse(
-        discussion: DiscussionWithComments | null
-    ): string {
-        if (!discussion) {
-            return "";
-        }
-
-        const comments =
-            discussion?.comments.map((c) =>
-                new ResponseBuilder()
-                    .with(c.clientName)
-                    .with(c.content, true)
-                    .build()
-            ) ?? [];
-
-        return new ResponseBuilder().withList(comments).build();
     }
 }

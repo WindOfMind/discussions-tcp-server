@@ -2,7 +2,7 @@ export interface Comment {
     id: string;
     discussionId: string;
     content: string;
-    clientName: string;
+    userName: string;
     ts: number;
 }
 

@@ -1,8 +1,8 @@
 import { DiscussionService } from "../../discussion/discussion-service";
-import { DiscussionWithComments } from "../../discussion/types";
 import logger from "../../logger/logger";
 import { ResponseBuilder } from "../response-builder";
 import { MessageHandler, Message } from "../types";
+import { toDiscussionResponse } from "./discussion-utils";
 
 export class GetDiscussionHandler implements MessageHandler {
     constructor(private discussionService: DiscussionService) {}
@@ -19,29 +19,11 @@ export class GetDiscussionHandler implements MessageHandler {
         }
 
         const discussion = this.discussionService.get(discussionId);
-        const discussionResponse = this.toDiscussionResponse(discussion);
+        const discussionResponse = toDiscussionResponse(discussion);
 
         return new ResponseBuilder()
             .with(msg.requestId)
             .with(discussionResponse)
             .build();
-    }
-
-    private toDiscussionResponse(
-        discussion: DiscussionWithComments | null
-    ): string {
-        if (!discussion) {
-            return "";
-        }
-
-        const comments =
-            discussion?.comments.map((c) =>
-                new ResponseBuilder()
-                    .with(c.clientName)
-                    .with(c.content, true)
-                    .build()
-            ) ?? [];
-
-        return new ResponseBuilder().withList(comments).build();
     }
 }

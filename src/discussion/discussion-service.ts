@@ -34,11 +34,11 @@ export class DiscussionService {
         const id = uuidv4();
         const referenceStart = reference.split(".")[0];
 
-        const comment = {
+        const comment: Comment = {
             id: uuidv4(),
             discussionId: id,
             content: commentContent,
-            clientName: clientName,
+            userName: clientName,
             ts: Date.now(),
         };
 
@@ -79,11 +79,11 @@ export class DiscussionService {
             throw new Error("Discussion not found");
         }
 
-        const reply = {
+        const reply: Comment = {
             id: uuidv4(),
             discussionId: discussionId,
             content: content,
-            clientName: userName,
+            userName: userName,
             ts: Date.now(),
         };
 
