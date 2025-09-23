@@ -6,7 +6,7 @@ import logger from "../../logger/logger";
 export class WhoAmIHandler implements MessageHandler {
     constructor(private authService: AuthService) {}
 
-    handle(msg: Message, payload: string[]): string {
+    handle(msg: Message): string {
         const name = this.authService.whoAmI(msg.clientId);
 
         if (!name) {

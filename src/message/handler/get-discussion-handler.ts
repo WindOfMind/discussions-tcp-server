@@ -7,9 +7,9 @@ import { toDiscussionResponse } from "./discussion-utils";
 export class GetDiscussionHandler implements MessageHandler {
     constructor(private discussionService: DiscussionService) {}
 
-    handle(msg: Message, payload: string[]): string {
-        const discussionId = payload[0];
-
+    handle(msg: Message): string {
+        const discussionId = msg.payload[0];
+            
         if (!discussionId) {
             logger.warn("No discussion ID provided for getting discussion", {
                 clientId: msg.clientId,

@@ -14,8 +14,9 @@ export interface Message {
     requestId: string;
     action: Action;
     clientId: string;
+    userName: string | null;
     payload: string[];
 }
 export interface MessageHandler {
-    handle(baseMessage: Message, payload: string[]): string;
+    handle(message: Message): string;
 }

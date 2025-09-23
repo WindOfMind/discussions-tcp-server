@@ -5,7 +5,7 @@ import { MessageHandler, Message } from "../types";
 export class SignOutHandler implements MessageHandler {
     constructor(private authService: AuthService) {}
 
-    handle(msg: Message, payload: string[]): string {
+    handle(msg: Message): string {
         this.authService.signOut(msg.clientId);
 
         // should return in the format: requestId

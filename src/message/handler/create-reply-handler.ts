@@ -5,24 +5,22 @@ import { MessageHandler, Message } from "../types";
 
 export class CreateReplyHandler implements MessageHandler {
     constructor(
-        private authService: AuthService,
         private discussionService: DiscussionService
     ) {}
 
-    handle(msg: Message, payload: string[]): string {
-        const discussionId = payload[0];
-        const comment = payload[1];
+    // Payload should contain [discussionId, comment]
+    handle(msg: Message): string {
+        const [discussionId, comment] = msg.payload;
 
         if (!discussionId || !comment) {
             throw new Error("Discussion ID and comment are required");
         }
 
-        const userName = this.authService.whoAmI(msg.clientId);
-        if (!userName) {
+        if (!msg.userName) {
             throw new Error("Not signed in");
         }
 
-        this.discussionService.replyTo(discussionId, userName, comment);
+        this.discussionService.replyTo(discussionId, msg.userName, comment);
 
         // should return in the format: requestId
         return new ResponseBuilder().with(msg.requestId).build();

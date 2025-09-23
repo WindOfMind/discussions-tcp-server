@@ -7,8 +7,9 @@ import { toDiscussionResponse } from "./discussion-utils";
 export class ListDiscussionsHandler implements MessageHandler {
     constructor(private discussionService: DiscussionService) {}
 
-    handle(msg: Message, payload: string[]): string {
-        const referencePrefix = payload[0];
+    // Payload should contain [referencePrefix]
+    handle(msg: Message): string {
+        const referencePrefix = msg.payload[0];
 
         if (!referencePrefix) {
             logger.warn(

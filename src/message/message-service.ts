@@ -22,11 +22,9 @@ export class MessageService {
             [Action.WHOAMI]: new WhoAmIHandler(this.authService),
             [Action.SIGN_OUT]: new SignOutHandler(this.authService),
             [Action.CREATE_DISCUSSION]: new CreateDiscussionHandler(
-                this.authService,
                 this.discussionService
             ),
             [Action.CREATE_REPLY]: new CreateReplyHandler(
-                this.authService,
                 this.discussionService
             ),
             [Action.GET_DISCUSSION]: new GetDiscussionHandler(
@@ -39,21 +37,21 @@ export class MessageService {
     }
 
     processMessage(data: Buffer, clientId: string): string {
-        const msg = parseMessage(data, clientId);
-
-        logger.info(`Processing message: ${msg.action}`, {
-            clientId: msg.clientId,
+        logger.info(`Processing message`, {
+            clientId,
         });
 
+        const userName = this.authService.whoAmI(clientId);
+        const msg = parseMessage(data, clientId, userName);
         const handler = this.messageHandlers[msg.action];
 
-        return handler.handle(msg, msg.payload);
+        return handler.handle(msg);
     }
 }
 
 const REQUEST_ID_REGEX = /^[a-z]{7}$/;
 
-export function parseMessage(data: Buffer, clientId: string): Message {
+export function parseMessage(data: Buffer, clientId: string, userName: string | null): Message {
     const message = data.toString().trimEnd();
     const parts = message.split("|");
 
@@ -75,6 +73,7 @@ export function parseMessage(data: Buffer, clientId: string): Message {
         requestId,
         action: action as Action,
         clientId,
+        userName,
         payload: parts.slice(2),
     };
 }

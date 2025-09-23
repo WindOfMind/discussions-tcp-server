@@ -7,8 +7,8 @@ export class SignInHandler implements MessageHandler {
     constructor(private authService: AuthService) {}
 
     // Payload should contain [clientName]
-    handle(msg: Message, payload: string[]): string {
-        if (!payload.length) {
+    handle(msg: Message): string {
+        if (!msg.payload.length) {
             logger.warn("No client name provided for sign-in", {
                 clientId: msg.clientId,
             });
@@ -16,7 +16,7 @@ export class SignInHandler implements MessageHandler {
             throw new Error("No client name provided");
         }
 
-        this.authService.signIn(msg.clientId, payload[0]);
+        this.authService.signIn(msg.clientId, msg.payload[0]);
 
         // should return in the format: requestId
         return new ResponseBuilder().with(msg.requestId).build();

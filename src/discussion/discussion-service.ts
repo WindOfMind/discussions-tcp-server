@@ -7,6 +7,7 @@ import { COMMENT_USER_NAME_REGEX } from "../auth/user";
 import { AuthService } from "../auth/auth-service";
 
 export class DiscussionService {
+    // TODO: move it to the repository class to mimic the real DB
     private discussions: {
         [id: string]: Discussion;
     } = {};
