@@ -403,6 +403,7 @@ describe("Server integration tests", () => {
             "ykkngzx|CREATE_DISCUSSION|video3.0s|Hey @johndoe, what do you think about this?\n"
         );
         const discussionId = createResponse.split("|")[1].trim();
+        await sendMessage(`tuvwxyz|CREATE_REPLY|${discussionId}|Me too!\n`);
 
         // assert - johndoe should receive notification even though they weren't part of discussion initially
         const notifications = await notificationPromise;
