@@ -1,6 +1,10 @@
 import { v4 as uuidv4 } from "uuid";
 import logger from "../logger/logger";
 import { Discussion, Comment, DiscussionWithComments } from "./types";
+import { NotificationService } from "../notification/notification-service";
+import { NotificationType } from "../notification/types";
+import { COMMENT_USER_NAME_REGEX } from "../auth/user";
+import { AuthService } from "../auth/auth-service";
 
 export class DiscussionService {
     private discussions: {
@@ -15,6 +19,11 @@ export class DiscussionService {
     private discussionIndex: {
         [reference: string]: string[];
     } = {};
+
+    constructor(
+        private readonly notificationService: NotificationService,
+        private readonly authService: AuthService
+    ) {}
 
     create(
         clientName: string,
@@ -31,30 +40,45 @@ export class DiscussionService {
         }
 
         // in the real DB, better to use it as a external ID, not PK
-        const id = uuidv4();
-        const referenceStart = reference.split(".")[0];
+        const discussionId = uuidv4();
 
         const comment: Comment = {
             id: uuidv4(),
-            discussionId: id,
+            discussionId: discussionId,
             content: commentContent,
             userName: clientName,
             ts: Date.now(),
         };
-
         this.comments[comment.id] = comment;
-        this.discussions[id] = {
-            id,
+
+        this.discussions[discussionId] = {
+            id: discussionId,
             reference,
-            referenceStart,
             commentIds: [comment.id],
+            users: new Set([clientName]),
             ts: Date.now(),
         };
 
-        this.updateDiscussionIndex(reference, id);
-        this.updateDiscussionIndex(referenceStart, id);
+        const referenceStart = reference.split(".")[0];
+        this.updateDiscussionIndex(reference, discussionId);
+        this.updateDiscussionIndex(referenceStart, discussionId);
 
-        return id;
+        const mentionedUsers = extractMentionedUsers(commentContent);
+        mentionedUsers.forEach((user) => {
+            if (user && this.authService.isUserExists(user)) {
+                this.discussions[discussionId].users.add(user);
+            }
+        });
+
+        this.notificationService.notify(
+            Array.from(this.discussions[discussionId].users),
+            {
+                type: NotificationType.DISCUSSION_UPDATED,
+                discussionId: discussionId,
+            }
+        );
+
+        return discussionId;
     }
 
     private updateDiscussionIndex(reference: string, discussionId: string) {
@@ -89,6 +113,22 @@ export class DiscussionService {
 
         this.comments[reply.id] = reply;
         discussion.commentIds.push(reply.id);
+
+        if (!discussion.users.has(userName)) {
+            discussion.users.add(userName);
+        }
+
+        const mentionedUsers = extractMentionedUsers(content);
+        mentionedUsers.forEach((user) => {
+            if (user && this.authService.isUserExists(user)) {
+                this.discussions[discussionId].users.add(user);
+            }
+        });
+
+        this.notificationService.notify(Array.from(discussion.users), {
+            type: NotificationType.DISCUSSION_UPDATED,
+            discussionId: discussionId,
+        });
     }
 
     get(discussionId: string): DiscussionWithComments | null {
@@ -124,3 +164,15 @@ export class DiscussionService {
             .sort((a, b) => a.ts - b.ts);
     }
 }
+
+export const extractMentionedUsers = (content: string): string[] => {
+    const mentions = new Set<string>();
+    let match;
+
+    while ((match = COMMENT_USER_NAME_REGEX.exec(content)) !== null) {
+        console.log(match);
+        mentions.add(match[1]);
+    }
+
+    return Array.from(mentions);
+};

@@ -9,8 +9,8 @@ export interface Comment {
 export interface Discussion {
     id: string;
     reference: string;
-    referenceStart: string;
     commentIds: string[];
+    users: Set<string>;
     ts: number;
 }
 

@@ -2,7 +2,6 @@ import * as net from "net";
 import { createServer } from "../../src/server";
 import {
     afterAll,
-    beforeAll,
     beforeEach,
     afterEach,
     describe,
@@ -105,6 +104,7 @@ describe("Server integration tests", () => {
         );
     });
 
+    //TODO: should return in order as the discussions were created
     test("should list discussions by prefix", async () => {
         // arrange
         await sendMessage("abcdefg|SIGN_IN|janedoe");

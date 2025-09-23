@@ -16,9 +16,9 @@ function makeDiscussion(comments: Comment[] = []): DiscussionWithComments {
     return {
         id: "d1",
         reference: "ref",
-        referenceStart: "start",
         commentIds: comments.map((c) => c.id),
         ts: 456,
+        users: new Set(comments.map((c) => c.userName)),
         comments,
     };
 }
