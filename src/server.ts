@@ -14,13 +14,13 @@ export const createServer = () => {
     );
     const messageService = new MessageService(discussionService, authService);
 
-    notificationService.init(100);
+    const stopFn = notificationService.init(100);
 
     const tcpServer = net.createServer((socket: net.Socket) => {
         const clientId = socket.remoteAddress + ":" + socket.remotePort;
         logger.info("Client connected", { clientId });
 
-        notificationService.registerListener(clientId, (message) => {
+        notificationService.registerClient(clientId, (message) => {
             socket.write(message);
         });
 
@@ -33,19 +33,23 @@ export const createServer = () => {
             try {
                 const response = messageService.processMessage(data, clientId);
                 logger.debug("Server sending", { response, clientId });
-
                 socket.write(response);
             } catch (error) {
                 logger.error("Error processing message", { error, clientId });
-
                 socket.write("Error processing message");
             }
         });
 
         socket.on("end", () => {
             logger.info("Client disconnected", { clientId });
-            notificationService.unregisterListener(clientId);
+            notificationService.unregisterClient(clientId);
         });
+    });
+
+    tcpServer.on("close", () => {
+        logger.info("Server closed");
+
+        stopFn();
     });
 
     return tcpServer;

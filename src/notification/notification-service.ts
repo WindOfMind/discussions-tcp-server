@@ -28,7 +28,7 @@ export class NotificationService {
         });
     }
 
-    registerListener(clientId: string, callback: (data: string) => void): void {
+    registerClient(clientId: string, callback: (data: string) => void): void {
         this.clientListeners.set(clientId, callback);
     }
 
@@ -40,27 +40,31 @@ export class NotificationService {
         this.usersByClientId.delete(clientId);
     }
 
-    unregisterListener(clientId: string): void {
+    unregisterClient(clientId: string): void {
         this.clientListeners.delete(clientId);
     }
 
-    notifyClients(): void {
+    notifyUsers(): void {
         this.usersByClientId.forEach((userName, clientId) => {
-            const messages = this.userNotifications.get(userName) || [];
-            const listener = this.clientListeners.get(clientId);
+            try {
+                const messages = this.userNotifications.get(userName) || [];
+                const listener = this.clientListeners.get(clientId);
 
-            if (!listener || messages.length === 0) {
-                return;
-            }
+                if (!listener || messages.length === 0) {
+                    return;
+                }
 
-            while (messages.length > 0) {
-                const message = messages.shift();
-                if (message) {
-                    const formatter = this.formatters[message.type];
-                    if (formatter) {
-                        listener(formatter(message));
+                while (messages.length > 0) {
+                    const message = messages.shift();
+                    if (message) {
+                        const formatter = this.formatters[message.type];
+                        if (formatter) {
+                            listener(formatter(message));
+                        }
                     }
                 }
+            } catch (error) {
+                logger.error("Error notifying clients:", error);
             }
         });
     }
@@ -69,14 +73,12 @@ export class NotificationService {
      * Starts periodic notification dispatching
      * @param interval in milliseconds
      */
-    init(interval = 100): void {
+    init(interval = 100) {
         const id = setInterval(() => {
-            try {
-                this.notifyClients();
-            } catch (error) {
-                logger.error("Error notifying clients:", error);
-            }
+            this.notifyUsers();
         }, interval);
+
+        return () => clearInterval(id);
     }
 }
 
