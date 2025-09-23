@@ -5,6 +5,8 @@ import logger from "./logger/logger";
 import { MessageService } from "./message/message-service";
 import { NotificationService } from "./notification/notification-service";
 
+const DEFAULT_NOTIFICATION_INTERVAL_MS = 100;
+
 export const createServer = () => {
     const notificationService = new NotificationService();
     const authService = new AuthService(notificationService);
@@ -13,8 +15,7 @@ export const createServer = () => {
         authService
     );
     const messageService = new MessageService(discussionService, authService);
-
-    const stopFn = notificationService.init(100);
+    const stopFn = notificationService.init(DEFAULT_NOTIFICATION_INTERVAL_MS);
 
     const tcpServer = net.createServer((socket: net.Socket) => {
         const clientId = socket.remoteAddress + ":" + socket.remotePort;

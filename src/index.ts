@@ -1,8 +1,12 @@
+import "dotenv/config";
 import logger from "./logger/logger";
 import { createServer } from "./server";
 
 const tcpServer = createServer();
 
-tcpServer.listen(8083, "localhost", () => {
-    logger.info("Server listening on port 8083");
+const port = Number(process.env.PORT) || 8083;
+const host = process.env.HOST || "localhost";
+
+tcpServer.listen(port, host, () => {
+    logger.info(`Server listening on port ${port}`);
 });

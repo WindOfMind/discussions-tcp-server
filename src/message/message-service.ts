@@ -51,7 +51,7 @@ export class MessageService {
     }
 }
 
-const requestIdRegex = /^[a-z]{7}$/;
+const REQUEST_ID_REGEX = /^[a-z]{7}$/;
 
 export function parseMessage(data: Buffer, clientId: string): Message {
     const message = data.toString().trimEnd();
@@ -62,7 +62,7 @@ export function parseMessage(data: Buffer, clientId: string): Message {
     }
 
     const requestId = parts[0];
-    if (!requestIdRegex.test(requestId)) {
+    if (!REQUEST_ID_REGEX.test(requestId)) {
         throw new Error("Request ID must be 7 lowercase letters");
     }
 

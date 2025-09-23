@@ -8,7 +8,7 @@ import {
 
 export class NotificationService {
     private userNotifications: Map<string, Notification[]> = new Map();
-    private clientListeners: Map<string, (data: string) => void> = new Map();
+    private clientHandlers: Map<string, (data: string) => void> = new Map();
     private usersByClientId: Map<string, string> = new Map();
     private formatters: Record<NotificationType, (n: Notification) => string> =
         {
@@ -28,8 +28,8 @@ export class NotificationService {
         });
     }
 
-    registerClient(clientId: string, callback: (data: string) => void): void {
-        this.clientListeners.set(clientId, callback);
+    registerClient(clientId: string, handler: (data: string) => void): void {
+        this.clientHandlers.set(clientId, handler);
     }
 
     registerUserForClient(clientId: string, userName: string): void {
@@ -41,16 +41,16 @@ export class NotificationService {
     }
 
     unregisterClient(clientId: string): void {
-        this.clientListeners.delete(clientId);
+        this.clientHandlers.delete(clientId);
     }
 
     notifyUsers(): void {
         this.usersByClientId.forEach((userName, clientId) => {
             try {
                 const messages = this.userNotifications.get(userName) || [];
-                const listener = this.clientListeners.get(clientId);
+                const handler = this.clientHandlers.get(clientId);
 
-                if (!listener || messages.length === 0) {
+                if (!handler || messages.length === 0) {
                     return;
                 }
 
@@ -59,7 +59,7 @@ export class NotificationService {
                     if (message) {
                         const formatter = this.formatters[message.type];
                         if (formatter) {
-                            listener(formatter(message));
+                            handler(formatter(message));
                         }
                     }
                 }
@@ -71,12 +71,12 @@ export class NotificationService {
 
     /**
      * Starts periodic notification dispatching
-     * @param interval in milliseconds
+     * @param intervalInMs in milliseconds
      */
-    init(interval = 100) {
+    init(intervalInMs = 100) {
         const id = setInterval(() => {
             this.notifyUsers();
-        }, interval);
+        }, intervalInMs);
 
         return () => clearInterval(id);
     }
