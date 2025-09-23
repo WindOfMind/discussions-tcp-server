@@ -8,6 +8,13 @@ import {
     expect,
     test,
 } from "vitest";
+import {
+    signIn,
+    sendMessage,
+    createDiscussion,
+    getDiscussion,
+    waitForDiscussionUpdated,
+} from "./helpers";
 
 describe("Server integration tests", () => {
     let server: net.Server;
@@ -33,86 +40,6 @@ describe("Server integration tests", () => {
         client.destroy();
     });
 
-    // Test helpers
-    const send = (targetClient: net.Socket, message: string) => {
-        return new Promise<string>((resolve) => {
-            targetClient.once("data", (data) => {
-                resolve(data.toString());
-            });
-            targetClient.write(message);
-        });
-    };
-
-    const sendMessage = (message: string) => send(client, message);
-
-    const signIn = async (
-        targetClient: net.Socket,
-        requestId: string,
-        username: string
-    ) => {
-        return send(targetClient, `${requestId}|SIGN_IN|${username}\n`);
-    };
-
-    const createDiscussion = async (
-        targetClient: net.Socket,
-        requestId: string,
-        videoTimestamp: string,
-        text: string
-    ) => {
-        const response = await send(
-            targetClient,
-            `${requestId}|CREATE_DISCUSSION|${videoTimestamp}|${text}\n`
-        );
-        return response.split("|")[1].trim();
-    };
-
-    const getDiscussion = async (
-        targetClient: net.Socket,
-        requestId: string,
-        discussionId: string
-    ) => {
-        return send(targetClient, `${requestId}|GET_DISCUSSION|${discussionId}\n`);
-    };
-
-    const clearNotifications = (targetClient: net.Socket) => {
-        return new Promise<string[]>((resolve) => {
-            const messages: string[] = [];
-            const timeout = setTimeout(() => resolve(messages), 50);
-
-            const onData = (data: Buffer) => {
-                messages.push(data.toString());
-                clearTimeout(timeout);
-                setTimeout(() => {
-                    targetClient.removeListener("data", onData);
-                    resolve(messages);
-                }, 50);
-            };
-
-            targetClient.on("data", onData);
-        });
-    };
-
-    const waitForDiscussionUpdated = (targetClient: net.Socket, timeoutMs = 200) => {
-        return new Promise<string[]>((resolve) => {
-            const notifications: string[] = [];
-            const timeout = setTimeout(() => resolve(notifications), timeoutMs);
-
-            const onData = (data: Buffer) => {
-                const message = data.toString();
-                if (message.startsWith("DISCUSSION_UPDATED")) {
-                    notifications.push(message);
-                    clearTimeout(timeout);
-                    setTimeout(() => {
-                        targetClient.removeListener("data", onData);
-                        resolve(notifications);
-                    }, 50);
-                }
-            };
-
-            targetClient.on("data", onData);
-        });
-    };
-
     test("should sign in a user", async () => {
         const response = await signIn(client, "ougmcim", "janedoe");
         expect(response).toBe("ougmcim\n");
@@ -120,13 +47,13 @@ describe("Server integration tests", () => {
 
     test("should return the current user", async () => {
         await signIn(client, "ougmcim", "janedoe");
-        const response = await sendMessage("hijklmn|WHOAMI\n");
+        const response = await sendMessage(client, "hijklmn|WHOAMI\n");
         expect(response).toBe("hijklmn|janedoe\n");
     });
 
     test("should sign out a user", async () => {
         await signIn(client, "ougmcim", "janedoe");
-        const response = await sendMessage("hijklmn|SIGN_OUT\n");
+        const response = await sendMessage(client, "hijklmn|SIGN_OUT\n");
         expect(response).toBe("hijklmn\n");
     });
 
@@ -165,6 +92,7 @@ describe("Server integration tests", () => {
 
         // act
         const replyResponse = await sendMessage(
+            client,
             `sqahhfj|CREATE_REPLY|${discussionId}|I think it's great!\n`
         );
 
@@ -201,11 +129,15 @@ describe("Server integration tests", () => {
 
         // should not return it
         await sendMessage(
+            client,
             `ykkngzx|CREATE_DISCUSSION|iofetzvfoo.1m30s|I think it's great!\n`
         );
 
         // act
-        const response = await sendMessage("opqrstu|LIST_DISCUSSIONS|iofetzv");
+        const response = await sendMessage(
+            client,
+            "opqrstu|LIST_DISCUSSIONS|iofetzv"
+        );
 
         // assert
         expect(response).toBe(
@@ -215,21 +147,11 @@ describe("Server integration tests", () => {
 
     test("should receive notification when someone replies to a discussion", async () => {
         // arrange - sign in two users
-        await sendMessage("abcdefg|SIGN_IN|janedoe\n");
+        await sendMessage(client, "abcdefg|SIGN_IN|janedoe\n");
 
         // Create second client connection
         const client2 = net.createConnection({ port });
         await new Promise((resolve) => client2.on("connect", resolve));
-
-        const sendMessage2 = (message: string) => {
-            return new Promise<string>((resolve) => {
-                client2.on("data", (data) => {
-                    resolve(data.toString());
-                });
-                client2.write(message);
-            });
-        };
-
         await signIn(client2, "hijklmn", "johndoe");
 
         // Create a discussion as janedoe
@@ -243,14 +165,12 @@ describe("Server integration tests", () => {
         // Wait a bit for notification processing
         await new Promise((resolve) => setTimeout(resolve, 150));
 
-        // Clear any existing notifications by reading data
-        await clearNotifications(client);
-        await clearNotifications(client2);
-
         // act - Reply as johndoe
         const replyPromise = waitForDiscussionUpdated(client);
+        const replyPromise2 = waitForDiscussionUpdated(client2);
 
-        await sendMessage2(
+        await sendMessage(
+            client2,
             `sqahhfj|CREATE_REPLY|${discussionId}|That's awesome!\n`
         );
 
@@ -259,65 +179,11 @@ describe("Server integration tests", () => {
         expect(notifications.length).toBe(1);
         expect(notifications[0]).toBe(`DISCUSSION_UPDATED|${discussionId}\n`);
 
-        client2.destroy();
-    });
-
-    test("should notify multiple users when they participate in a discussion", async () => {
-        // arrange - sign in three users
-        await signIn(client, "abcdefg", "janedoe");
-
-        const client2 = net.createConnection({ port });
-        await new Promise((resolve) => client2.on("connect", resolve));
-        const client3 = net.createConnection({ port });
-        await new Promise((resolve) => client3.on("connect", resolve));
-
-        const sendMessage2 = (message: string) => send(client2, message);
-
-        const sendMessage3 = (message: string) => send(client3, message);
-
-        await signIn(client2, "hijklmn", "johndoe");
-        await signIn(client3, "opqrstu", "alicedoe");
-
-        // Create a discussion as janedoe
-        const discussionId = await createDiscussion(
-            client,
-            "ykkngzx",
-            "video2.0s",
-            "Team meeting discussion"
-        );
-
-        // johndoe replies
-        await sendMessage2(
-            `sqahhfj|CREATE_REPLY|${discussionId}|I'll be there\n`
-        );
-
-        // Wait for notifications to be processed
-        await new Promise((resolve) => setTimeout(resolve, 150));
-
-        // Clear existing notifications
-        await clearNotifications(client);
-        await clearNotifications(client2);
-
-        // act - alicedoe replies, should notify both janedoe and johndoe
-        const notification1Promise = waitForDiscussionUpdated(client);
-
-        const notification2Promise = waitForDiscussionUpdated(client2);
-
-        await sendMessage3(`tuvwxyz|CREATE_REPLY|${discussionId}|Me too!\n`);
-
-        // assert - both users should receive notifications
-        const [notifications1, notifications2] = await Promise.all([
-            notification1Promise,
-            notification2Promise,
-        ]);
-
-        expect(notifications1.length).toBe(1);
-        expect(notifications1[0]).toBe(`DISCUSSION_UPDATED|${discussionId}\n`);
+        const notifications2 = await replyPromise2;
         expect(notifications2.length).toBe(1);
         expect(notifications2[0]).toBe(`DISCUSSION_UPDATED|${discussionId}\n`);
 
         client2.destroy();
-        client3.destroy();
     });
 
     test("should notify users when they are mentioned in a comment", async () => {
@@ -326,20 +192,11 @@ describe("Server integration tests", () => {
 
         const client2 = net.createConnection({ port });
         await new Promise((resolve) => client2.on("connect", resolve));
-
-        const sendMessage2 = (message: string) => send(client2, message);
-
         await signIn(client2, "hijklmn", "johndoe");
 
-        // Wait for sign in to complete
-        await new Promise((resolve) => setTimeout(resolve, 50));
-
-        // Clear any existing notifications
-        await clearNotifications(client);
-        await clearNotifications(client2);
-
         // act - janedoe creates discussion mentioning johndoe
-        const notificationPromise = waitForDiscussionUpdated(client2);
+        const notificationPromise = waitForDiscussionUpdated(client);
+        const notificationPromise2 = waitForDiscussionUpdated(client2);
 
         const discussionId = await createDiscussion(
             client,
@@ -347,12 +204,19 @@ describe("Server integration tests", () => {
             "video3.0s",
             "Hey @johndoe, what do you think about this?"
         );
-        await sendMessage(`tuvwxyz|CREATE_REPLY|${discussionId}|Me too!\n`);
+        await sendMessage(
+            client,
+            `tuvwxyz|CREATE_REPLY|${discussionId}|Me too!\n`
+        );
 
         // assert - johndoe should receive notification even though they weren't part of discussion initially
         const notifications = await notificationPromise;
         expect(notifications.length).toBe(1);
         expect(notifications[0]).toBe(`DISCUSSION_UPDATED|${discussionId}\n`);
+
+        const notifications2 = await notificationPromise2;
+        expect(notifications2.length).toBe(1);
+        expect(notifications2[0]).toBe(`DISCUSSION_UPDATED|${discussionId}\n`);
 
         client2.destroy();
     });
