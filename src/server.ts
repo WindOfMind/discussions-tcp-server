@@ -14,6 +14,8 @@ export const createServer = () => {
     );
     const messageService = new MessageService(discussionService, authService);
 
+    notificationService.init(100);
+
     const tcpServer = net.createServer((socket: net.Socket) => {
         const clientId = socket.remoteAddress + ":" + socket.remotePort;
         logger.info("Client connected", { clientId });

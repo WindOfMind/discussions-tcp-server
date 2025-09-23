@@ -158,10 +158,13 @@ export class DiscussionService {
         logger.info("Listing discussions", { referencePrefix });
         const discussions = this.discussionIndex[referencePrefix] || [];
 
-        return discussions
-            .map((id) => this.get(id))
-            .filter((d): d is DiscussionWithComments => d !== null)
-            .sort((a, b) => a.ts - b.ts);
+        return (
+            discussions
+                .map((id) => this.get(id))
+                .filter((d): d is DiscussionWithComments => d !== null)
+                // TODO: check if we need sorting?
+                .sort((a, b) => a.ts - b.ts)
+        );
     }
 }
 

@@ -1,3 +1,4 @@
+import logger from "../logger/logger";
 import { ResponseBuilder } from "../message/response-builder";
 import {
     DiscussionUpdatedNotification,
@@ -45,7 +46,6 @@ export class NotificationService {
 
     notifyClients(): void {
         this.usersByClientId.forEach((userName, clientId) => {
-            //TODO: deduplicate messages?
             const messages = this.userNotifications.get(userName) || [];
             const listener = this.clientListeners.get(clientId);
 
@@ -70,8 +70,13 @@ export class NotificationService {
      * @param interval in milliseconds
      */
     init(interval = 100): void {
-        // TODO: wrap in try-catch
-        const id = setInterval(() => this.notifyClients(), interval);
+        const id = setInterval(() => {
+            try {
+                this.notifyClients();
+            } catch (error) {
+                logger.error("Error notifying clients:", error);
+            }
+        }, interval);
     }
 }
 
