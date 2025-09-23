@@ -70,14 +70,6 @@ export class DiscussionService {
             }
         });
 
-        this.notificationService.notify(
-            Array.from(this.discussions[discussionId].users),
-            {
-                type: NotificationType.DISCUSSION_UPDATED,
-                discussionId: discussionId,
-            }
-        );
-
         return discussionId;
     }
 
@@ -173,7 +165,6 @@ export const extractMentionedUsers = (content: string): string[] => {
     let match;
 
     while ((match = COMMENT_USER_NAME_REGEX.exec(content)) !== null) {
-        console.log(match);
         mentions.add(match[1]);
     }
 
