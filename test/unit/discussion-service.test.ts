@@ -1,4 +1,7 @@
-import { extractMentionedUsers } from "../../src/discussion/discussion-service";
+import {
+    extractMentionedUsers,
+    isValidReference,
+} from "../../src/discussion/discussion-service";
 
 describe("extractMentionedUsers", () => {
     it("returns empty array when content has no mentions", () => {
@@ -90,5 +93,34 @@ describe("extractMentionedUsers", () => {
             "bob",
             "charlie",
         ]);
+    });
+});
+
+describe("isValidReference", () => {
+    it("returns true for valid references with alphanumeric parts", () => {
+        expect(isValidReference("video1.1")).toBe(true);
+        expect(isValidReference("A1B2.c3D4")).toBe(true);
+        expect(isValidReference("123.456")).toBe(true);
+    });
+
+    it("returns false for references without a dot or with extra dots", () => {
+        expect(isValidReference("video1")).toBe(false);
+        expect(isValidReference("video1.")).toBe(false);
+        expect(isValidReference(".1")).toBe(false);
+        expect(isValidReference("video..1")).toBe(false);
+        expect(isValidReference("video1.1.1")).toBe(false);
+    });
+
+    it("returns false for references with non-alphanumeric characters", () => {
+        expect(isValidReference("video-1.1")).toBe(false);
+        expect(isValidReference("video1._1")).toBe(false);
+        expect(isValidReference("video_1.2")).toBe(false);
+    });
+
+    it("returns false for references with spaces or empty string", () => {
+        expect(isValidReference("")).toBe(false);
+        expect(isValidReference(" video1.1")).toBe(false);
+        expect(isValidReference("video1.1 ")).toBe(false);
+        expect(isValidReference("video 1.1")).toBe(false);
     });
 });

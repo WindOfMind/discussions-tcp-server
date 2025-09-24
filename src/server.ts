@@ -12,26 +12,54 @@ import { SignInHandler } from "./message/handler/signin-handler";
 import { SignOutHandler } from "./message/handler/signout-handler";
 import { WhoAmIHandler } from "./message/handler/whoami-handler";
 import { MessageType } from "./message/types";
+import { DiscussionRepository } from "./discussion/discussion-repository";
 
 const DEFAULT_NOTIFICATION_INTERVAL_MS = 100;
 
 export const createServer = () => {
+    // Repositories
+    const discussionRepository = new DiscussionRepository();
+
     // Services
     const notificationService = new NotificationService();
     const authService = new AuthService(notificationService);
     const discussionService = new DiscussionService(
         notificationService,
-        authService
+        authService,
+        discussionRepository
     );
     const messageService = new MessageService(authService);
-    messageService.acceptMessage(MessageType.SIGN_IN, new SignInHandler(authService));
-    messageService.acceptMessage(MessageType.WHOAMI, new WhoAmIHandler(authService));
-    messageService.acceptMessage(MessageType.SIGN_OUT, new SignOutHandler(authService));
-    messageService.acceptMessage(MessageType.CREATE_DISCUSSION, new CreateDiscussionHandler(discussionService));
-    messageService.acceptMessage(MessageType.CREATE_REPLY, new CreateReplyHandler(discussionService));
-    messageService.acceptMessage(MessageType.GET_DISCUSSION, new GetDiscussionHandler(discussionService));
-    messageService.acceptMessage(MessageType.LIST_DISCUSSIONS, new ListDiscussionsHandler(discussionService));
-    const stopFn = notificationService.init(DEFAULT_NOTIFICATION_INTERVAL_MS);
+    messageService.acceptMessage(
+        MessageType.SIGN_IN,
+        new SignInHandler(authService)
+    );
+    messageService.acceptMessage(
+        MessageType.WHOAMI,
+        new WhoAmIHandler(authService)
+    );
+    messageService.acceptMessage(
+        MessageType.SIGN_OUT,
+        new SignOutHandler(authService)
+    );
+    messageService.acceptMessage(
+        MessageType.CREATE_DISCUSSION,
+        new CreateDiscussionHandler(discussionService)
+    );
+    messageService.acceptMessage(
+        MessageType.CREATE_REPLY,
+        new CreateReplyHandler(discussionService)
+    );
+    messageService.acceptMessage(
+        MessageType.GET_DISCUSSION,
+        new GetDiscussionHandler(discussionService)
+    );
+    messageService.acceptMessage(
+        MessageType.LIST_DISCUSSIONS,
+        new ListDiscussionsHandler(discussionService)
+    );
+    const notificationStopFn = notificationService.init(
+        DEFAULT_NOTIFICATION_INTERVAL_MS
+    );
 
     // Server
     const tcpServer = net.createServer((socket: net.Socket) => {
@@ -53,7 +81,11 @@ export const createServer = () => {
                 logger.debug("Server sending", { response, clientId });
                 socket.write(response);
             } catch (error) {
-                logger.error("Error processing message", { error, clientId });
+                logger.error("Error processing message", {
+                    error,
+                    clientId,
+                    data: data.toString(),
+                });
                 socket.write("Error processing message");
             }
         });
@@ -67,7 +99,7 @@ export const createServer = () => {
     tcpServer.on("close", () => {
         logger.info("Server closed");
 
-        stopFn();
+        notificationStopFn();
     });
 
     return tcpServer;

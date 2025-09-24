@@ -1,85 +1,49 @@
-import { v4 as uuidv4 } from "uuid";
 import logger from "../logger/logger";
-import { Discussion, Comment, DiscussionWithComments } from "./types";
+import { DiscussionWithComments } from "./types";
 import { NotificationService } from "../notification/notification-service";
 import { NotificationType } from "../notification/types";
 import { COMMENT_USER_NAME_REGEX } from "../auth/user";
 import { AuthService } from "../auth/auth-service";
+import { DiscussionRepository } from "./discussion-repository";
+
+const REFERENCE_REGEX = /^[a-zA-Z0-9]+\.[a-zA-Z0-9]+$/;
 
 export class DiscussionService {
-    // TODO: move it to the repository class to mimic the real DB
-    private discussions: {
-        [id: string]: Discussion;
-    } = {};
-
-    private comments: {
-        [id: string]: Comment;
-    } = {};
-
-    // quick access by reference prefix
-    private discussionIndex: {
-        [reference: string]: string[];
-    } = {};
-
     constructor(
         private readonly notificationService: NotificationService,
-        private readonly authService: AuthService
+        private readonly authService: AuthService,
+        private readonly discussionRepository: DiscussionRepository
     ) {}
 
-    create(
-        clientName: string,
-        reference: string,
-        commentContent: string
-    ): string {
+    create(user: string, reference: string, commentContent: string): string {
         logger.info("Creating discussion", {
-            clientName,
+            clientName: user,
             reference,
         });
 
-        if (!reference.includes(".")) {
+        if (!isValidReference(reference)) {
             throw new Error("Invalid reference format");
         }
 
-        // in the real DB, better to use it as a external ID, not PK
-        const discussionId = uuidv4();
+        const mentionedUsers = this.getMentionedUsers(commentContent);
 
-        const comment: Comment = {
-            id: uuidv4(),
-            discussionId: discussionId,
-            content: commentContent,
-            userName: clientName,
-            ts: Date.now(),
-        };
-        this.comments[comment.id] = comment;
-
-        this.discussions[discussionId] = {
-            id: discussionId,
+        // creating and adding users should be done in one transaction
+        const discussionId = this.discussionRepository.create(
+            user,
             reference,
-            commentIds: [comment.id],
-            users: new Set([clientName]),
-            ts: Date.now(),
-        };
+            commentContent
+        );
+        this.discussionRepository.addUsers(discussionId, [
+            ...mentionedUsers,
+            user,
+        ]);
 
-        const referenceStart = reference.split(".")[0];
-        this.updateDiscussionIndex(reference, discussionId);
-        this.updateDiscussionIndex(referenceStart, discussionId);
-
-        const mentionedUsers = extractMentionedUsers(commentContent);
-        mentionedUsers.forEach((user) => {
-            if (user && this.authService.isUserExists(user)) {
-                this.discussions[discussionId].users.add(user);
-            }
+        logger.info("Discussion created", {
+            discussionId,
+            mentionedUsers,
         });
 
         return discussionId;
-    }
-
-    private updateDiscussionIndex(reference: string, discussionId: string) {
-        if (!this.discussionIndex[reference]) {
-            this.discussionIndex[reference] = [];
-        }
-
-        this.discussionIndex[reference].push(discussionId);
     }
 
     replyTo(discussionId: string, userName: string, content: string): void {
@@ -88,36 +52,25 @@ export class DiscussionService {
             userName,
         });
 
-        const discussion = this.discussions[discussionId];
+        const discussion = this.discussionRepository.get(discussionId);
 
         if (!discussion) {
             logger.error("Discussion not found", { discussionId });
-
             throw new Error("Discussion not found");
         }
 
-        const reply: Comment = {
-            id: uuidv4(),
-            discussionId: discussionId,
-            content: content,
-            userName: userName,
-            ts: Date.now(),
-        };
+        const mentionedUsers = this.getMentionedUsers(content);
 
-        this.comments[reply.id] = reply;
-        discussion.commentIds.push(reply.id);
+        // adding comment and adding users should be done in one transaction
+        this.discussionRepository.addComment(discussionId, content, userName);
+        this.discussionRepository.addUsers(discussionId, [
+            ...mentionedUsers,
+            userName,
+        ]);
 
-        if (!discussion.users.has(userName)) {
-            discussion.users.add(userName);
-        }
-
-        const mentionedUsers = extractMentionedUsers(content);
-        mentionedUsers.forEach((user) => {
-            if (user && this.authService.isUserExists(user)) {
-                this.discussions[discussionId].users.add(user);
-            }
-        });
-
+        // Though in this particular case, it is reasonable to assume
+        // that we don't need to guarantee "at-least-one" notification.
+        // If we need to guarantee "at-least-one" notification, we should use the outbox pattern
         this.notificationService.notify(Array.from(discussion.users), {
             type: NotificationType.DISCUSSION_UPDATED,
             discussionId: discussionId,
@@ -126,21 +79,7 @@ export class DiscussionService {
 
     get(discussionId: string): DiscussionWithComments | null {
         logger.info("Getting discussion", { discussionId });
-
-        const discussion = this.discussions[discussionId] || null;
-
-        if (discussion) {
-            const comments = discussion.commentIds.map(
-                (id) => this.comments[id]
-            );
-
-            return {
-                ...discussion,
-                comments,
-            };
-        }
-
-        return null;
+        return this.discussionRepository.getWithComments(discussionId);
     }
 
     /**
@@ -149,17 +88,24 @@ export class DiscussionService {
      */
     list(referencePrefix: string): DiscussionWithComments[] {
         logger.info("Listing discussions", { referencePrefix });
-        const discussions = this.discussionIndex[referencePrefix] || [];
 
-        return (
-            discussions
-                .map((id) => this.get(id))
-                .filter((d): d is DiscussionWithComments => d !== null)
-                // TODO: check if we need sorting?
-                .sort((a, b) => a.ts - b.ts)
+        return this.discussionRepository.list(referencePrefix);
+    }
+
+    private getMentionedUsers(content: string): string[] {
+        const mentionedUsers = extractMentionedUsers(content);
+
+        const validMentionedUsers = mentionedUsers.filter((user) =>
+            this.authService.isUserExists(user)
         );
+
+        return validMentionedUsers;
     }
 }
+
+export const isValidReference = (reference: string): boolean => {
+    return REFERENCE_REGEX.test(reference);
+};
 
 export const extractMentionedUsers = (content: string): string[] => {
     const mentions = new Set<string>();

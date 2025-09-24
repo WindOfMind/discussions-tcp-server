@@ -175,13 +175,11 @@ describe("Server integration tests", () => {
         );
 
         // assert - janedoe should receive notification about the reply
-        const notifications = await replyPromise;
-        expect(notifications.length).toBe(1);
-        expect(notifications[0]).toBe(`DISCUSSION_UPDATED|${discussionId}\n`);
+        const notification = await replyPromise;
+        expect(notification).toBe(`DISCUSSION_UPDATED|${discussionId}\n`);
 
-        const notifications2 = await replyPromise2;
-        expect(notifications2.length).toBe(1);
-        expect(notifications2[0]).toBe(`DISCUSSION_UPDATED|${discussionId}\n`);
+        const notification2 = await replyPromise2;
+        expect(notification2).toBe(`DISCUSSION_UPDATED|${discussionId}\n`);
 
         client2.destroy();
     });
@@ -210,13 +208,11 @@ describe("Server integration tests", () => {
         );
 
         // assert - johndoe should receive notification even though they weren't part of discussion initially
-        const notifications = await notificationPromise;
-        expect(notifications.length).toBe(1);
-        expect(notifications[0]).toBe(`DISCUSSION_UPDATED|${discussionId}\n`);
+        const notification = await notificationPromise;
+        expect(notification).toBe(`DISCUSSION_UPDATED|${discussionId}\n`);
 
-        const notifications2 = await notificationPromise2;
-        expect(notifications2.length).toBe(1);
-        expect(notifications2[0]).toBe(`DISCUSSION_UPDATED|${discussionId}\n`);
+        const notification2 = await notificationPromise2;
+        expect(notification2).toBe(`DISCUSSION_UPDATED|${discussionId}\n`);
 
         client2.destroy();
     });

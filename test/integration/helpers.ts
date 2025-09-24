@@ -23,12 +23,12 @@ export const signIn = async (
 export const createDiscussion = async (
     targetClient: net.Socket,
     requestId: string,
-    videoTimestamp: string,
+    ref: string,
     text: string
 ) => {
     const response = await send(
         targetClient,
-        `${requestId}|CREATE_DISCUSSION|${videoTimestamp}|${text}\n`
+        `${requestId}|CREATE_DISCUSSION|${ref}|${text}\n`
     );
     return response.split("|")[1].trim();
 };
@@ -45,19 +45,16 @@ export const waitForDiscussionUpdated = (
     targetClient: net.Socket,
     timeoutMs = 200
 ) => {
-    return new Promise<string[]>((resolve) => {
-        const notifications: string[] = [];
-        const timeout = setTimeout(() => resolve(notifications), timeoutMs);
+    return new Promise<string>((resolve) => {
+        let notification: string;
+        const timeout = setTimeout(() => resolve(notification), timeoutMs);
 
         const onData = (data: Buffer) => {
             const message = data.toString();
             if (message.startsWith("DISCUSSION_UPDATED")) {
-                notifications.push(message);
+                notification = message;
                 clearTimeout(timeout);
-                setTimeout(() => {
-                    targetClient.removeListener("data", onData);
-                    resolve(notifications);
-                }, 50);
+                resolve(notification);
             }
         };
 
