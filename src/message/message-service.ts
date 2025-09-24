@@ -1,39 +1,17 @@
 import { AuthService } from "../auth/auth-service";
-import { DiscussionService } from "../discussion/discussion-service";
-import { Action, Actions, Message, MessageHandler } from "./types";
-import { SignInHandler } from "./handler/signin-handler";
-import { WhoAmIHandler } from "./handler/whoami-handler";
-import { SignOutHandler } from "./handler/signout-handler";
-import { CreateDiscussionHandler } from "./handler/create-discussion-handler";
-import { CreateReplyHandler } from "./handler/create-reply-handler";
-import { GetDiscussionHandler } from "./handler/get-discussion-handler";
-import { ListDiscussionsHandler } from "./handler/list-discussions-handler";
+import { MessageType, Message, MessageHandler, MessageTypes } from "./types";
 import logger from "../logger/logger";
 
 export class MessageService {
-    private messageHandlers: Record<Action, MessageHandler>;
+    private messageHandlers: { [messageType: string]: MessageHandler } = {};
 
     constructor(
-        private readonly discussionService: DiscussionService,
         private readonly authService: AuthService
     ) {
-        this.messageHandlers = {
-            [Action.SIGN_IN]: new SignInHandler(this.authService),
-            [Action.WHOAMI]: new WhoAmIHandler(this.authService),
-            [Action.SIGN_OUT]: new SignOutHandler(this.authService),
-            [Action.CREATE_DISCUSSION]: new CreateDiscussionHandler(
-                this.discussionService
-            ),
-            [Action.CREATE_REPLY]: new CreateReplyHandler(
-                this.discussionService
-            ),
-            [Action.GET_DISCUSSION]: new GetDiscussionHandler(
-                this.discussionService
-            ),
-            [Action.LIST_DISCUSSIONS]: new ListDiscussionsHandler(
-                this.discussionService
-            ),
-        };
+    }
+
+    acceptMessage(messageType: MessageType, handler: MessageHandler) {
+        this.messageHandlers[messageType] = handler;
     }
 
     processMessage(data: Buffer, clientId: string): string {
@@ -43,7 +21,11 @@ export class MessageService {
 
         const userName = this.authService.whoAmI(clientId);
         const msg = parseMessage(data, clientId, userName);
-        const handler = this.messageHandlers[msg.action];
+        const handler = this.messageHandlers[msg.messageType];
+
+        if (!handler) {
+            throw new Error(`Unknown message type: ${msg.messageType}`);
+        }
 
         return handler.handle(msg);
     }
@@ -64,14 +46,14 @@ export function parseMessage(data: Buffer, clientId: string, userName: string | 
         throw new Error("Request ID must be 7 lowercase letters");
     }
 
-    const action = parts[1];
-    if (!Actions.includes(action)) {
-        throw new Error(`Unknown action: ${action}`);
+    const messageType = parts[1];
+    if (!MessageTypes.includes(messageType)) {
+        throw new Error(`Unknown action: ${messageType}`);
     }
 
     return {
         requestId,
-        action: action as Action,
+        messageType: messageType as MessageType,
         clientId,
         userName,
         payload: parts.slice(2),

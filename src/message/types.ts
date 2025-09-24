@@ -1,4 +1,4 @@
-export enum Action {
+export enum MessageType {
     SIGN_IN = "SIGN_IN",
     WHOAMI = "WHOAMI",
     SIGN_OUT = "SIGN_OUT",
@@ -8,11 +8,11 @@ export enum Action {
     LIST_DISCUSSIONS = "LIST_DISCUSSIONS",
 }
 
-export const Actions = Object.values(Action).map(String);
+export const MessageTypes = Object.values(MessageType).map(String);
 
 export interface Message {
     requestId: string;
-    action: Action;
+    messageType: MessageType;
     clientId: string;
     userName: string | null;
     payload: string[];

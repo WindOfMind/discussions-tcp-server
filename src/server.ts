@@ -4,19 +4,36 @@ import { DiscussionService } from "./discussion/discussion-service";
 import logger from "./logger/logger";
 import { MessageService } from "./message/message-service";
 import { NotificationService } from "./notification/notification-service";
+import { CreateDiscussionHandler } from "./message/handler/create-discussion-handler";
+import { CreateReplyHandler } from "./message/handler/create-reply-handler";
+import { GetDiscussionHandler } from "./message/handler/get-discussion-handler";
+import { ListDiscussionsHandler } from "./message/handler/list-discussions-handler";
+import { SignInHandler } from "./message/handler/signin-handler";
+import { SignOutHandler } from "./message/handler/signout-handler";
+import { WhoAmIHandler } from "./message/handler/whoami-handler";
+import { MessageType } from "./message/types";
 
 const DEFAULT_NOTIFICATION_INTERVAL_MS = 100;
 
 export const createServer = () => {
+    // Services
     const notificationService = new NotificationService();
     const authService = new AuthService(notificationService);
     const discussionService = new DiscussionService(
         notificationService,
         authService
     );
-    const messageService = new MessageService(discussionService, authService);
+    const messageService = new MessageService(authService);
+    messageService.acceptMessage(MessageType.SIGN_IN, new SignInHandler(authService));
+    messageService.acceptMessage(MessageType.WHOAMI, new WhoAmIHandler(authService));
+    messageService.acceptMessage(MessageType.SIGN_OUT, new SignOutHandler(authService));
+    messageService.acceptMessage(MessageType.CREATE_DISCUSSION, new CreateDiscussionHandler(discussionService));
+    messageService.acceptMessage(MessageType.CREATE_REPLY, new CreateReplyHandler(discussionService));
+    messageService.acceptMessage(MessageType.GET_DISCUSSION, new GetDiscussionHandler(discussionService));
+    messageService.acceptMessage(MessageType.LIST_DISCUSSIONS, new ListDiscussionsHandler(discussionService));
     const stopFn = notificationService.init(DEFAULT_NOTIFICATION_INTERVAL_MS);
 
+    // Server
     const tcpServer = net.createServer((socket: net.Socket) => {
         const clientId = socket.remoteAddress + ":" + socket.remotePort;
         logger.info("Client connected", { clientId });
