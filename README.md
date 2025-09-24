@@ -139,6 +139,13 @@ Proper indices should be added to support queries:
 -   listing by reference prefix;
 -   joins (collecting comments, users).
 
+In the RDBMS, we can use transactions to ensure data consistency.
+In the RDBMS, we can have the following tables:
+
+-   Discussions (id, reference, external_id, created_at, updated_at)
+-   Comments (id, discussion_id, user_id, comment, created_at)
+-   Discussion_users (id, user_id, discussion_id)
+
 In the case of the future growth and expecting a huge number of the discussions,
 we can introduce a cache for the "hottest" discussions to mitigate the performance degradation of the main storage.
 Also, for further scaling, we can consider sharding/partitioning discussion DB and using replicas for read queries.
