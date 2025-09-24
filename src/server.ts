@@ -14,8 +14,6 @@ import { WhoAmIHandler } from "./message/handler/whoami-handler";
 import { MessageType } from "./message/types";
 import { DiscussionRepository } from "./discussion/discussion-repository";
 
-const DEFAULT_NOTIFICATION_INTERVAL_MS = 100;
-
 export const createServer = (withNotifications = true) => {
     // Repositories
     const discussionRepository = new DiscussionRepository();

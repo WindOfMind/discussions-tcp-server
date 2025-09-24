@@ -12,6 +12,14 @@ export class AuthService {
     signIn(clientId: string, name: string): void {
         logger.info("Client signed in", { clientId, name });
 
+        if (!validateUsername(name)) {
+            logger.error("Invalid user name", { name });
+
+            throw new Error(
+                "Invalid user name. Only alphanumeric characters and underscores are allowed."
+            );
+        }
+
         if (this.clientIds[name]) {
             logger.error("Name already taken", {
                 name,
@@ -19,14 +27,6 @@ export class AuthService {
             });
 
             throw new Error("Name already taken");
-        }
-
-        if (!validateUsername(name)) {
-            logger.error("Invalid user name", { name });
-
-            throw new Error(
-                "Invalid user name. Only alphanumeric characters and underscores are allowed."
-            );
         }
 
         this.clientNames[clientId] = name;
@@ -48,15 +48,15 @@ export class AuthService {
     signOut(clientId: string): void {
         logger.info("Client signed out", { clientId });
 
-        if (this.clientNames[clientId]) {
-            this.notificationService.unregisterUser(this.clientNames[clientId]);
+        const name = this.clientNames[clientId];
+        if (name) {
+            this.notificationService.unregisterUser(name);
         }
 
         this.clientNames[clientId] = null;
-    }
-
-    getClientUser(clientId: string): string | null {
-        return this.clientNames[clientId] || null;
+        if (name) {
+            delete this.clientIds[name];
+        }
     }
 
     isUserExists(name: string): boolean {
