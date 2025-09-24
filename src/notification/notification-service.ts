@@ -6,15 +6,25 @@ import {
     NotificationType,
 } from "./types";
 
+const DEFAULT_LIMIT = 100;
+
 export class NotificationService {
-    private userNotifications: Map<string, Notification[]> = new Map();
+    private userNotifications: Map<string, string[]> = new Map();
+    private notificationQueue: number[] = [];
+    private notificationMessages: Map<
+        number,
+        { user: string; message: string }
+    > = new Map();
+
     private clientHandlers: Map<string, (data: string) => void> = new Map();
-    private usersByClientId: Map<string, string> = new Map();
+    private clientIdByUser: Map<string, string> = new Map();
     private formatters: Record<NotificationType, (n: Notification) => string> =
         {
             [NotificationType.DISCUSSION_UPDATED]:
                 formatDiscussionUpdatedNotification,
         };
+
+    private id = 1;
 
     constructor() {}
 
@@ -24,7 +34,19 @@ export class NotificationService {
                 this.userNotifications.set(user, []);
             }
 
-            this.userNotifications.get(user)?.push(notification);
+            const formatter = this.formatters[notification.type];
+            if (!formatter) {
+                throw new Error(
+                    `Formatter for notification type ${notification.type} not found`
+                );
+            }
+
+            this.notificationMessages.set(this.id, {
+                user,
+                message: formatter(notification),
+            });
+            this.notificationQueue.push(this.id);
+            this.id++;
         });
     }
 
@@ -32,12 +54,12 @@ export class NotificationService {
         this.clientHandlers.set(clientId, handler);
     }
 
-    registerUserForClient(clientId: string, userName: string): void {
-        this.usersByClientId.set(clientId, userName);
+    registerUser(clientId: string, userName: string): void {
+        this.clientIdByUser.set(userName, clientId);
     }
 
-    unregisterUserForClient(clientId: string): void {
-        this.usersByClientId.delete(clientId);
+    unregisterUser(userName: string): void {
+        this.clientIdByUser.delete(userName);
     }
 
     unregisterClient(clientId: string): void {
@@ -45,28 +67,39 @@ export class NotificationService {
     }
 
     notifyUsers(): void {
-        this.usersByClientId.forEach((userName, clientId) => {
+        const messages = this.selectMessages();
+
+        messages.forEach((id) => {
+            const message = this.notificationMessages.get(id);
+
             try {
-                const messages = this.userNotifications.get(userName) || [];
-                const handler = this.clientHandlers.get(clientId);
+                if (message) {
+                    const clientId =
+                        this.clientIdByUser.get(message.user) || "";
+                    const handler = this.clientHandlers.get(clientId);
 
-                if (!handler || messages.length === 0) {
-                    return;
-                }
+                    if (!handler) {
+                        logger.warn("Handler for client not found", {
+                            clientId,
+                        });
 
-                while (messages.length > 0) {
-                    const message = messages.shift();
-                    if (message) {
-                        const formatter = this.formatters[message.type];
-                        if (formatter) {
-                            handler(formatter(message));
-                        }
+                        return;
                     }
+
+                    handler(message.message);
+                    this.notificationMessages.delete(id);
                 }
             } catch (error) {
-                logger.error("Error notifying clients:", error);
+                logger.error("Error notifying clients:", {
+                    error,
+                    user: message?.user,
+                });
             }
         });
+
+        this.notificationQueue = this.notificationQueue.filter((id) =>
+            messages.includes(id)
+        );
     }
 
     /**
@@ -79,6 +112,21 @@ export class NotificationService {
         }, intervalInMs);
 
         return () => clearInterval(id);
+    }
+
+    // Take first DEFAULT_LIMIT messages from the queue
+    private selectMessages() {
+        const messages = this.notificationQueue
+            .filter((id) => {
+                const user = this.notificationMessages.get(id)?.user || "";
+                return (
+                    this.notificationMessages.has(id) &&
+                    this.clientIdByUser.has(user)
+                );
+            })
+            .slice(0, DEFAULT_LIMIT);
+
+        return messages;
     }
 }
 

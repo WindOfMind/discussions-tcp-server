@@ -33,7 +33,7 @@ export class AuthService {
         this.clientIds[name] = clientId;
         this.users.add(name);
 
-        this.notificationService.registerUserForClient(clientId, name);
+        this.notificationService.registerUser(clientId, name);
     }
 
     whoAmI(clientId: string): string | null {
@@ -48,8 +48,11 @@ export class AuthService {
     signOut(clientId: string): void {
         logger.info("Client signed out", { clientId });
 
+        if (this.clientNames[clientId]) {
+            this.notificationService.unregisterUser(this.clientNames[clientId]);
+        }
+
         this.clientNames[clientId] = null;
-        this.notificationService.unregisterUserForClient(clientId);
     }
 
     getClientUser(clientId: string): string | null {

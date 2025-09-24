@@ -16,7 +16,7 @@ import { DiscussionRepository } from "./discussion/discussion-repository";
 
 const DEFAULT_NOTIFICATION_INTERVAL_MS = 100;
 
-export const createServer = () => {
+export const createServer = (withNotifications = true) => {
     // Repositories
     const discussionRepository = new DiscussionRepository();
 
@@ -57,9 +57,12 @@ export const createServer = () => {
         MessageType.LIST_DISCUSSIONS,
         new ListDiscussionsHandler(discussionService)
     );
-    const notificationStopFn = notificationService.init(
-        DEFAULT_NOTIFICATION_INTERVAL_MS
-    );
+    const notificationStopFn = withNotifications
+        ? notificationService.init(
+              Number(process.env.NOTIFICATION_INTERVAL_MS) ||
+                  DEFAULT_NOTIFICATION_INTERVAL_MS
+          )
+        : null;
 
     // Server
     const tcpServer = net.createServer((socket: net.Socket) => {
@@ -99,7 +102,7 @@ export const createServer = () => {
     tcpServer.on("close", () => {
         logger.info("Server closed");
 
-        notificationStopFn();
+        notificationStopFn?.();
     });
 
     return tcpServer;
