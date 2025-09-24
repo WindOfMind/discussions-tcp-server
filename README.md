@@ -141,13 +141,14 @@ Proper indices should be added to support queries:
 
 In the case of the future growth and expecting a huge number of the discussions,
 we can introduce a cache for the "hottest" discussions to mitigate the performance degradation of the main storage.
+Also, for further scaling, we can consider sharding/partitioning discussion DB and using replicas for read queries.
 
 ### Notification storage
 
 Notification storage depends on the product decisions:
 
 -   do we need to guarantee at least one notification;
--   should we notify only "online" users;
+-   should we notify only "online" users or persist notifications for "offline" users;
 -   what's the SLA for delivering notifications;
 -   do we need other channels of the notifications.
 
