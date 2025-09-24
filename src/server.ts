@@ -64,7 +64,7 @@ export const createServer = (withNotifications = true) => {
         const clientId = socket.remoteAddress + ":" + socket.remotePort;
         logger.info("Client connected", { clientId });
 
-        notificationService.registerClient(clientId, (message) => {
+        notificationService.registerHandler(clientId, (message) => {
             socket.write(message);
         });
 
@@ -90,7 +90,7 @@ export const createServer = (withNotifications = true) => {
 
         socket.on("end", () => {
             logger.info("Client disconnected", { clientId });
-            notificationService.unregisterClient(clientId);
+            notificationService.unregisterHandler(clientId);
         });
     });
 

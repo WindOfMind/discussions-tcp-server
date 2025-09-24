@@ -5,7 +5,7 @@ import { validateUsername } from "./user";
 export class AuthService {
     private users = new Set<string>();
     private clientNames: { [clientId: string]: string | null } = {};
-    private clientIds: { [clientName: string]: string } = {};
+    private clientIds: { [clientName: string]: Set<string> } = {};
 
     constructor(private readonly notificationService: NotificationService) {}
 
@@ -20,17 +20,11 @@ export class AuthService {
             );
         }
 
-        if (this.clientIds[name]) {
-            logger.error("Name already taken", {
-                name,
-                existingClientId: this.clientIds[name],
-            });
-
-            throw new Error("Name already taken");
-        }
-
         this.clientNames[clientId] = name;
-        this.clientIds[name] = clientId;
+        if (!this.clientIds[name]) {
+            this.clientIds[name] = new Set();
+        }
+        this.clientIds[name].add(clientId);
         this.users.add(name);
 
         this.notificationService.registerUser(clientId, name);
@@ -50,12 +44,13 @@ export class AuthService {
 
         const name = this.clientNames[clientId];
         if (name) {
-            this.notificationService.unregisterUser(name);
+            this.notificationService.unregisterUser(name, clientId);
         }
 
         this.clientNames[clientId] = null;
-        if (name) {
-            delete this.clientIds[name];
+
+        if (name && this.clientIds[name]) {
+            this.clientIds[name].delete(clientId);
         }
     }
 

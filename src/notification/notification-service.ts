@@ -11,7 +11,7 @@ export class NotificationService {
     private scheduledNotifications: Map<string, string[]> = new Map();
     private notificationQueue: { user: string; message: string }[] = [];
     private clientHandlers: Map<string, (data: string) => void> = new Map();
-    private clientIdByUser: Map<string, string> = new Map();
+    private userClientIds: Map<string, Set<string>> = new Map();
 
     private formatters: Record<NotificationType, (n: Notification) => string> =
         {
@@ -37,7 +37,7 @@ export class NotificationService {
                 );
             }
 
-            if (this.clientIdByUser.has(user)) {
+            if (this.userClientIds.has(user)) {
                 this.notificationQueue.push({
                     user,
                     message: formatter(notification),
@@ -53,16 +53,20 @@ export class NotificationService {
         });
     }
 
-    registerClient(clientId: string, handler: (data: string) => void): void {
+    registerHandler(clientId: string, handler: (data: string) => void): void {
         this.clientHandlers.set(clientId, handler);
     }
 
-    unregisterClient(clientId: string): void {
+    unregisterHandler(clientId: string): void {
         this.clientHandlers.delete(clientId);
     }
 
     registerUser(clientId: string, userName: string): void {
-        this.clientIdByUser.set(userName, clientId);
+        if (!this.userClientIds.has(userName)) {
+            this.userClientIds.set(userName, new Set());
+        }
+
+        this.userClientIds.get(userName)?.add(clientId);
 
         // setTimeout to avoid imimediate execution during registration
         setTimeout(() => {
@@ -70,8 +74,8 @@ export class NotificationService {
         });
     }
 
-    unregisterUser(userName: string): void {
-        this.clientIdByUser.delete(userName);
+    unregisterUser(userName: string, clientId: string): void {
+        this.userClientIds.get(userName)?.delete(clientId);
     }
 
     private pushScheduledMessages(userName: string) {
@@ -96,20 +100,25 @@ export class NotificationService {
             });
 
             try {
-                const clientId = this.clientIdByUser.get(message.user) || "";
-                const handler = this.clientHandlers.get(clientId);
+                const clientIds =
+                    this.userClientIds.get(message.user) ?? new Set();
 
-                if (!handler) {
+                const handlers = Array.from(clientIds)
+                    .map((clientId) => this.clientHandlers.get(clientId))
+                    .filter((handler) => handler !== undefined);
+
+                if (handlers.length === 0) {
+                    // if user is offline, re-schedule the message for later
                     if (!this.scheduledNotifications.has(message.user)) {
                         this.scheduledNotifications.set(message.user, []);
                     }
 
-                    // user is not connected
                     this.scheduledNotifications
                         .get(message.user)
                         ?.push(message.message);
                 } else {
-                    handler(message.message);
+                    // retries are not supported in this implementation
+                    handlers.forEach((handler) => handler(message.message));
                 }
             } catch (error) {
                 logger.error("Error sending notification", {
