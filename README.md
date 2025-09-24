@@ -1,10 +1,10 @@
-# Synthesia Task – TCP Discussion Server
+# TCP Discussion Server
 
 A simple TCP server written in TypeScript that manages lightweight discussions with sign-in/out, creating discussions, replying, and querying. Clients connect over TCP and exchange pipe-delimited messages. The server also pushes asynchronous notifications when discussions are updated.
 
 ## Prerequisites
 
--   Node.js 20+
+-   [Node.js 24+](https://nodejs.org/en)
 -   pnpm/npm/yarn (examples below use npm)
 
 ## Install, Build, Run
@@ -14,7 +14,7 @@ A simple TCP server written in TypeScript that manages lightweight discussions w
 2. Build TypeScript:
     - `npm run build`
 3. Start server:
-    - `npm start`
+    - `npm start` or in dev mode `npm run dev`
 
 Environment variables:
 
@@ -106,16 +106,16 @@ The server may push notifications at any time (not correlated with a `requestId`
     - `nc localhost 8083`
 3. Send requests (each terminated with `\n`):
     - `aaaaaaa|SIGN_IN|alice`
-    - `bbbbbbb|CREATE_DISCUSSION|DOC-1|First comment`
-    - `ccccccc|LIST_DISCUSSIONS|DOC-`
+    - `bbbbbbb|CREATE_DISCUSSION|DOC.1|First comment`
+    - `ccccccc|LIST_DISCUSSIONS|DOC`
     - `ddddddd|GET_DISCUSSION|<paste-discussion-id>`
 
 Expected example responses:
 
 -   `aaaaaaa` (sign-in ack)
 -   `bbbbbbb|<discussionId>`
--   `ccccccc|( <discussionId>|DOC-1|(alice|First comment) )` (spacing optional)
--   `ddddddd|<discussionId>|DOC-1|(alice|First comment)`
+-   `ccccccc|(<discussionId>|DOC.1|(alice|First comment))`
+-   `ddddddd|<discussionId>|DOC.1|(alice|First comment)`
 
 ### Logging
 
@@ -125,9 +125,9 @@ Structured logs are printed to stdout using Winston. Connection-level `clientId`
 
 The application built in the way to support easy extension by plugging-in new message handlers for new types of messages in the `server.ts`.
 
-Discussion updates are periodically processed and are sent out for the connected users. When there is an update for an offline user, the update would be saved in memory (DB/Cache in real case), and sent out when used is back. We assume that the only channel for delivering updates is TCP connection. If we would need other channels (emails, etc.), we would need to introduce dedicated Notification services classes, each responsible for a particular channel. Also, user preferences should be taken into account.
+Discussion updates are asynchronously processed and are sent out for the connected users. When there is an update for an offline user, the update would be saved in memory (DB/Cache in real case), and sent out when used is back. We assume that the only channel for delivering updates is TCP connection. If we would need other channels (emails, etc.), we would need to introduce dedicated Notification services classes, each responsible for a particular channel. Also, user preferences should be taken into account.
 
-In the real application, apart from logging, collecting metrics is important to set up.
+In the real application, apart from logging, it is important to collect metrics (CPU usage, memory usage, request latencies, etc.).
 
 ### Discussion storage
 
