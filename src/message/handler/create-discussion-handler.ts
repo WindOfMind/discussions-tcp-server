@@ -1,8 +1,12 @@
-import { AuthService } from "../../auth/auth-service";
 import { DiscussionService } from "../../discussion/discussion-service";
 import { ResponseBuilder } from "../response-builder";
 import { MessageHandler, Message } from "../types";
 
+/**
+ * Handler for creating a new discussion.
+ * Expects payload to contain [reference, comment].
+ * Returns response in the format: requestId|discussionId
+ */
 export class CreateDiscussionHandler implements MessageHandler {
     constructor(private discussionService: DiscussionService) {}
 
@@ -23,7 +27,6 @@ export class CreateDiscussionHandler implements MessageHandler {
             comment
         );
 
-        // should return in the format: requestId|discussionId
         return new ResponseBuilder().with(msg.requestId).with(id).build();
     }
 }

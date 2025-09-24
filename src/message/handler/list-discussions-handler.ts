@@ -4,10 +4,14 @@ import { ResponseBuilder } from "../response-builder";
 import { MessageHandler, Message } from "../types";
 import { toDiscussionResponse } from "./discussion-utils";
 
+/**
+ * Handler for listing discussions by reference prefix.
+ * Expects payload to contain [referencePrefix].
+ * Returns response in the format: requestId|(discussionId|reference|(userName|comment,...),(),...)
+ */
 export class ListDiscussionsHandler implements MessageHandler {
     constructor(private discussionService: DiscussionService) {}
 
-    // Payload should contain [referencePrefix]
     handle(msg: Message): string {
         const referencePrefix = msg.payload[0];
 
@@ -25,8 +29,6 @@ export class ListDiscussionsHandler implements MessageHandler {
         const discussions = this.discussionService.list(referencePrefix);
         const discussionsResponses = discussions.map(toDiscussionResponse);
 
-        // should return in the format:
-        // requestId|(discussionId|reference|(userName|comment,...),(),...)
         return new ResponseBuilder()
             .with(msg.requestId)
             .withList(discussionsResponses)

@@ -3,6 +3,11 @@ import { ResponseBuilder } from "../response-builder";
 import { MessageHandler, Message } from "../types";
 import logger from "../../logger/logger";
 
+/**
+ * Handler for retrieving the name of the currently signed-in user.
+ * Expects no payload.
+ * Returns response in the format: requestId|name
+ */
 export class WhoAmIHandler implements MessageHandler {
     constructor(private authService: AuthService) {}
 
@@ -17,7 +22,6 @@ export class WhoAmIHandler implements MessageHandler {
             throw new Error("Not signed in");
         }
 
-        // should return in the format: requestId|name
         return new ResponseBuilder().with(msg.requestId).with(name).build();
     }
 }

@@ -3,22 +3,25 @@ import logger from "../../logger/logger";
 import { ResponseBuilder } from "../response-builder";
 import { Message, MessageHandler } from "../types";
 
+/**
+ * Handler for signing in a client.
+ * Expects payload to contain [userName].
+ * Returns response in the format: requestId
+ */
 export class SignInHandler implements MessageHandler {
     constructor(private authService: AuthService) {}
 
-    // Payload should contain [clientName]
     handle(msg: Message): string {
         if (!msg.payload.length) {
-            logger.warn("No client name provided for sign-in", {
+            logger.warn("No user name provided for sign-in", {
                 clientId: msg.clientId,
             });
 
-            throw new Error("No client name provided");
+            throw new Error("No user name provided");
         }
 
         this.authService.signIn(msg.clientId, msg.payload[0]);
 
-        // should return in the format: requestId
         return new ResponseBuilder().with(msg.requestId).build();
     }
 }
