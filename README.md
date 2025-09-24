@@ -20,7 +20,6 @@ Environment variables:
 
 -   `PORT` (default `8083`)
 -   `HOST` (default `localhost`)
--   `NOTIFICATION_INTERVAL_MS` (default `100`)
 
 The compiled entrypoint is `dist/index.js`, which creates a TCP server listening on `HOST:PORT`.
 
@@ -126,7 +125,7 @@ Structured logs are printed to stdout using Winston. Connection-level `clientId`
 
 The application built in the way to support easy extension by plugging-in new message handlers for new types of messages in the `server.ts`.
 
-Discussion updates are periodically processed in the cron job. It selects first limited amount of notifications every N ms and sends it out.
+Discussion updates are periodically processed and are sent out for the connected users. When there is an update for an offline user, the update would be saved in memory (DB/Cache in real case), and sent out when used is back. We assume that the only channel for delivering updates is TCP connection. If we would need other channels (emails, etc.), we would need to introduce dedicated Notification services classes, each responsible for a particular channel. Also, user preferences should be taken into account.
 
 In the real application, apart from logging, collecting metrics is important to set up.
 

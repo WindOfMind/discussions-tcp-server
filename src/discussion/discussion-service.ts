@@ -71,10 +71,13 @@ export class DiscussionService {
         // Though in this particular case, it is reasonable to assume
         // that we don't need to guarantee "at-least-one" notification.
         // If we need to guarantee "at-least-one" notification, we should use the outbox pattern
-        this.notificationService.notify(Array.from(discussion.users), {
-            type: NotificationType.DISCUSSION_UPDATED,
-            discussionId: discussionId,
-        });
+        this.notificationService.scheduleNotification(
+            Array.from(discussion.users),
+            {
+                type: NotificationType.DISCUSSION_UPDATED,
+                discussionId: discussionId,
+            }
+        );
     }
 
     get(discussionId: string): DiscussionWithComments | null {

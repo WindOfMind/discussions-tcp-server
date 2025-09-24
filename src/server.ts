@@ -58,10 +58,7 @@ export const createServer = (withNotifications = true) => {
         new ListDiscussionsHandler(discussionService)
     );
     const notificationStopFn = withNotifications
-        ? notificationService.init(
-              Number(process.env.NOTIFICATION_INTERVAL_MS) ||
-                  DEFAULT_NOTIFICATION_INTERVAL_MS
-          )
+        ? notificationService.init()
         : null;
 
     // Server

@@ -6,34 +6,30 @@ import {
     NotificationType,
 } from "./types";
 
-const DEFAULT_LIMIT = 100;
-
 export class NotificationService {
-    private userNotifications: Map<string, string[]> = new Map();
-    private notificationQueue: number[] = [];
-    private notificationMessages: Map<
-        number,
-        { user: string; message: string }
-    > = new Map();
-
+    // in real application, use a persistent storage like Redis or a database
+    private scheduledNotifications: Map<string, string[]> = new Map();
+    private notificationQueue: { user: string; message: string }[] = [];
     private clientHandlers: Map<string, (data: string) => void> = new Map();
     private clientIdByUser: Map<string, string> = new Map();
+
     private formatters: Record<NotificationType, (n: Notification) => string> =
         {
             [NotificationType.DISCUSSION_UPDATED]:
                 formatDiscussionUpdatedNotification,
         };
 
-    private id = 1;
+    private shouldStop = false;
 
     constructor() {}
 
-    notify(users: string[], notification: Notification): void {
-        users.forEach((user) => {
-            if (!this.userNotifications.has(user)) {
-                this.userNotifications.set(user, []);
-            }
+    scheduleNotification(users: string[], notification: Notification): void {
+        logger.info("Scheduling notifications for users", {
+            users,
+            notification,
+        });
 
+        users.forEach((user) => {
             const formatter = this.formatters[notification.type];
             if (!formatter) {
                 throw new Error(
@@ -41,12 +37,19 @@ export class NotificationService {
                 );
             }
 
-            this.notificationMessages.set(this.id, {
-                user,
-                message: formatter(notification),
-            });
-            this.notificationQueue.push(this.id);
-            this.id++;
+            if (this.clientIdByUser.has(user)) {
+                this.notificationQueue.push({
+                    user,
+                    message: formatter(notification),
+                });
+            } else {
+                if (!this.scheduledNotifications.has(user)) {
+                    this.scheduledNotifications.set(user, []);
+                }
+                this.scheduledNotifications
+                    .get(user)
+                    ?.push(formatter(notification));
+            }
         });
     }
 
@@ -54,79 +57,87 @@ export class NotificationService {
         this.clientHandlers.set(clientId, handler);
     }
 
+    unregisterClient(clientId: string): void {
+        this.clientHandlers.delete(clientId);
+    }
+
     registerUser(clientId: string, userName: string): void {
         this.clientIdByUser.set(userName, clientId);
+
+        // setTimeout to avoid imimediate execution during registration
+        setTimeout(() => {
+            this.pushScheduledMessages(userName);
+        });
     }
 
     unregisterUser(userName: string): void {
         this.clientIdByUser.delete(userName);
     }
 
-    unregisterClient(clientId: string): void {
-        this.clientHandlers.delete(clientId);
+    private pushScheduledMessages(userName: string) {
+        const messages = this.scheduledNotifications.get(userName);
+
+        if (messages) {
+            messages.forEach((message) => {
+                this.notificationQueue.push({
+                    user: userName,
+                    message,
+                });
+            });
+            this.scheduledNotifications.delete(userName);
+        }
     }
 
-    notifyUsers(): void {
-        const messages = this.selectMessages();
-
-        messages.forEach((id) => {
-            const message = this.notificationMessages.get(id);
+    private processQueue(): void {
+        const message = this.notificationQueue.shift();
+        if (message) {
+            logger.info("Sending out a notification", {
+                message,
+            });
 
             try {
-                if (message) {
-                    const clientId =
-                        this.clientIdByUser.get(message.user) || "";
-                    const handler = this.clientHandlers.get(clientId);
+                const clientId = this.clientIdByUser.get(message.user) || "";
+                const handler = this.clientHandlers.get(clientId);
 
-                    if (!handler) {
-                        logger.warn("Handler for client not found", {
-                            clientId,
-                        });
-
-                        return;
+                if (!handler) {
+                    if (!this.scheduledNotifications.has(message.user)) {
+                        this.scheduledNotifications.set(message.user, []);
                     }
 
+                    // user is not connected
+                    this.scheduledNotifications
+                        .get(message.user)
+                        ?.push(message.message);
+                } else {
                     handler(message.message);
-                    this.notificationMessages.delete(id);
                 }
             } catch (error) {
-                logger.error("Error notifying clients:", {
+                logger.error("Error sending notification", {
                     error,
-                    user: message?.user,
+                    user: message.user,
                 });
             }
-        });
+        }
 
-        this.notificationQueue = this.notificationQueue.filter((id) =>
-            messages.includes(id)
-        );
+        if (!this.shouldStop) {
+            setTimeout(() => {
+                this.processQueue();
+            });
+        }
     }
 
     /**
      * Starts periodic notification dispatching
-     * @param intervalInMs in milliseconds
+     * @returns a function to stop the notification dispatching
      */
-    init(intervalInMs = 100) {
-        const id = setInterval(() => {
-            this.notifyUsers();
-        }, intervalInMs);
+    init() {
+        setTimeout(() => {
+            this.processQueue();
+        });
 
-        return () => clearInterval(id);
-    }
-
-    // Take first DEFAULT_LIMIT messages from the queue
-    private selectMessages() {
-        const messages = this.notificationQueue
-            .filter((id) => {
-                const user = this.notificationMessages.get(id)?.user || "";
-                return (
-                    this.notificationMessages.has(id) &&
-                    this.clientIdByUser.has(user)
-                );
-            })
-            .slice(0, DEFAULT_LIMIT);
-
-        return messages;
+        return () => {
+            this.shouldStop = true;
+        };
     }
 }
 
